@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: novaerp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-novaerp}
+      POSTGRES_USER: ${DB_USER:-novaerp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-novaerp}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - novaerp-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-novaerp} -d ${DB_NAME:-novaerp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: novaerp-mailhog
+    restart: unless-stopped
+    ports:
+      - "${MAIL_PORT:-1025}:1025" # SMTP
+      - "${MAILHOG_UI_PORT:-8025}:8025" # Web UI
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: novaerp-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-seed}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-novaerp}
+      DB_USER: ${DB_USER:-novaerp}
+      DB_PASSWORD: ${DB_PASSWORD:-novaerp}
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      MAIL_FROM: ${MAIL_FROM:-no-reply@novaerp.local}
+      JWT_SECRET: ${JWT_SECRET:-c2ltcGxlLWRldi1zZWNyZXQtZm9yLW5vdmFlcnAtYmFja2VuZC1jaGFuZ2UtbWU=}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      SERVER_PORT: 8080
+    ports:
+      - "${HOST_PORT:-8081}:8080"
+
+volumes:
+  novaerp-postgres-data:
