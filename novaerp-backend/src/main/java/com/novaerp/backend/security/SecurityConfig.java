@@ -52,9 +52,13 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/stock/movements").hasAnyRole("ADMIN", "USER")
                         .requestMatchers(HttpMethod.POST, "/api/stock/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/stock/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/stock/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/clients/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/clients/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/clients/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

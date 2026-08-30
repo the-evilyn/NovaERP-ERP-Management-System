@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  createClients,
-  deleteClients,
+  createClient,
+  deleteClient,
   getClient,
   getClients,
   updateClient,
-} from "@/services/services.mock";
-import type { Client } from "@/types/models";
+} from "@/services/clients.service";
+import type { ClientRequest } from "@/types/models";
 
-export function useClients(page = 0, size = 10) {
+export function useClients(page = 0, size = 10, search?: string) {
   return useQuery({
-    queryKey: ["clients", page, size],
-    queryFn: () => getClients(page, size),
+    queryKey: ["clients", page, size, search],
+    queryFn: () => getClients(page, size, search),
   });
 }
 
@@ -27,7 +27,31 @@ export function useDeleteClients() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (ids: number[]) => deleteClients(ids),
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(ids.map((id) => deleteClient(id)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
+export function useDeleteClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => deleteClient(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
+export function useCreateClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ClientRequest) => createClient(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
     },
@@ -38,9 +62,9 @@ export function useCreateClients() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (
-      clients: Omit<Client, "id" | "createdAt" | "updatedAt">[],
-    ) => createClients(clients),
+    mutationFn: async (clients: ClientRequest[]) => {
+      return Promise.all(clients.map((c) => createClient(c)));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
     },
@@ -56,7 +80,7 @@ export function useUpdateClient() {
       data,
     }: {
       id: number;
-      data: Omit<Client, "id" | "createdAt" | "updatedAt">;
+      data: ClientRequest;
     }) => updateClient(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });

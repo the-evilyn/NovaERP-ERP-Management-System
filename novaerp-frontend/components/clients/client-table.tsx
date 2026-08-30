@@ -7,9 +7,7 @@ import {
   MoreVerticalIcon,
   PencilEdit01Icon,
   Upload01Icon,
-  ViewIcon,
 } from "@hugeicons/core-free-icons";
-import Link from "next/link";
 import type React from "react";
 import { useRef, useState } from "react";
 import {
@@ -60,7 +58,7 @@ function InfoField({
   value,
 }: {
   label: string;
-  value: string | null;
+  value: string | null | undefined;
 }): React.ReactElement {
   return (
     <div className="flex flex-col gap-0.5">
@@ -98,7 +96,7 @@ export function ClientTable(): React.ReactElement {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data, isPending } = useClients(currentPage - 1, pageSize);
+  const { data, isPending } = useClients(currentPage - 1, pageSize, search);
   const deleteClients = useDeleteClients();
   const createClients = useCreateClients();
 
@@ -257,10 +255,6 @@ export function ClientTable(): React.ReactElement {
               <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
             </MenuTrigger>
             <MenuPopup align="end">
-              <MenuItem render={<Link href={`/clients/${client.id}`} />}>
-                <HugeiconsIcon icon={ViewIcon} strokeWidth={2} />
-                Voir la fiche
-              </MenuItem>
               <MenuItem onClick={() => setEditingClient(client)}>
                 <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
                 Modifier
