@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: novaerp-backend-test
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:novaerp}
+    username: ${DB_USER:novaerp}
+    password: ${DB_PASSWORD:novaerp}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:c2ltcGxlLWRldi1zZWNyZXQtZm9yLW5vdmFlcnAtYmFja2VuZC1jaGFuZ2UtbWU=}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  mail:
+    from: ${MAIL_FROM:no-reply@novaerp.local}
+  reset-password:
+    frontend-url: ${RESET_PASSWORD_URL:http://localhost:3000/reset-password}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}

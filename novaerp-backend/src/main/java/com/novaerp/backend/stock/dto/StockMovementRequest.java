@@ -14,7 +14,6 @@ public record StockMovementRequest(
         StockMovementType type,
 
         @NotNull(message = "Quantity is required")
-        @Positive(message = "Quantity must be positive")
         BigDecimal quantity,
 
         String reference,
