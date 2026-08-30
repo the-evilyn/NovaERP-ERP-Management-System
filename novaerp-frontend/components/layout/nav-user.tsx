@@ -1,7 +1,7 @@
 "use client";
 
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Logout03Icon, MoreVerticalIcon, Settings01Icon } from "@hugeicons/core-free-icons";
+import { Logout03Icon, MoreVerticalIcon } from "@hugeicons/core-free-icons";
 import type React from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -87,11 +87,6 @@ export function NavUser({
                 </div>
               </MenuGroupLabel>
             </MenuGroup>
-            <MenuSeparator />
-            <MenuItem>
-              <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
-              Paramètres
-            </MenuItem>
             <MenuSeparator />
             <MenuItem variant="destructive" onClick={onLogout}>
               <HugeiconsIcon icon={Logout03Icon} strokeWidth={2} />

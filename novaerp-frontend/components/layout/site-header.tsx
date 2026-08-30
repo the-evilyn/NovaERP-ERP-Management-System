@@ -8,9 +8,11 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/decisions": "Aide à la décision & Réapprovisionnement",
   "/articles": "Articles",
   "/categories": "Catégories",
   "/suppliers": "Fournisseurs",
+  "/clients": "Clients",
   "/units": "Unités",
   "/stock-movements": "Mouvements de stock",
   "/import-export": "Import / Export",

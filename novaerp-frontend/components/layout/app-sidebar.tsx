@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AiBrain01Icon,
   DashboardSquare01Icon,
   Exchange02Icon,
   FileExportIcon,
@@ -8,6 +9,7 @@ import {
   ShoppingCart01Icon,
   Store01Icon,
   TruckDeliveryIcon,
+  User02Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import type React from "react";
@@ -26,9 +28,11 @@ import { useAuth } from "@/providers/auth-provider";
 
 const navMain: NavMainItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: DashboardSquare01Icon },
+  { title: "Aide à la décision", url: "/decisions", icon: AiBrain01Icon },
   { title: "Articles", url: "/articles", icon: ShoppingCart01Icon },
   { title: "Catégories", url: "/categories", icon: Store01Icon },
   { title: "Fournisseurs", url: "/suppliers", icon: TruckDeliveryIcon },
+  { title: "Clients", url: "/clients", icon: User02Icon },
   { title: "Unités", url: "/units", icon: Package02Icon },
   {
     title: "Mouvements de stock",

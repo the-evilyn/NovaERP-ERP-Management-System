@@ -56,11 +56,32 @@ export interface ApiError {
 }
 
 // ---------- Client ----------
-export interface Client extends BaseEntity {
+export interface ClientResponse extends BaseEntity {
+  name?: string;
   nom: string;
   email: string | null;
-  telephone: string | null;
-  adresse: string | null;
+  phone?: string | null;
+  telephone?: string | null;
+  address?: string | null;
+  adresse?: string | null;
+  city?: string | null;
+  taxNumber?: string | null;
+  notes?: string | null;
+}
+
+export type Client = ClientResponse;
+
+export interface ClientRequest {
+  name?: string;
+  nom?: string;
+  email?: string | null;
+  phone?: string | null;
+  telephone?: string | null;
+  address?: string | null;
+  adresse?: string | null;
+  city?: string | null;
+  taxNumber?: string | null;
+  notes?: string | null;
 }
 
 // ---------- Product ----------
@@ -292,4 +313,65 @@ export interface StockMovementResponse {
   createdById: number;
   createdByName: string;
   createdAt: string;
+}
+
+// ---- Dashboard Stats ----
+export interface CategoryStockValue {
+  categoryName: string;
+  value: number;
+}
+
+export interface TopArticleStockValue {
+  id: number;
+  reference: string;
+  designation: string;
+  stockQuantity: number;
+  purchasePriceHt: number;
+  stockValue: number;
+  unitName: string | null;
+}
+
+export interface DashboardStatsResponse {
+  totalArticles: number;
+  totalCategories: number;
+  totalSuppliers: number;
+  totalClients: number;
+  totalQuantity: number;
+  totalValue: number;
+  criticalStock: number;
+  lowStock: number;
+  outOfStock: number;
+  categoryValues: CategoryStockValue[];
+  topArticles: TopArticleStockValue[];
+}
+
+// ---- Intelligent Decision Support ----
+export type RiskLevel = "OUT_OF_STOCK" | "CRITICAL" | "WARNING" | "NORMAL";
+
+export interface ReorderRecommendationResponse {
+  articleId: number;
+  articleReference: string;
+  designation: string;
+  categoryName: string | null;
+  unitName: string | null;
+  currentStock: number;
+  minStockQuantity: number;
+  riskScore: number;
+  riskLevel: RiskLevel;
+  suggestedQuantity: number;
+  recommendedSupplierId: number | null;
+  recommendedSupplierName: string;
+  unitPrice: number;
+  leadTimeDays: number | null;
+  estimatedBudget: number;
+  explanation: string;
+}
+
+export interface StockRiskSummaryResponse {
+  totalArticlesAtRisk: number;
+  outOfStockCount: number;
+  criticalCount: number;
+  warningCount: number;
+  totalEstimatedReorderBudget: number;
+  averageRiskScore: number;
 }

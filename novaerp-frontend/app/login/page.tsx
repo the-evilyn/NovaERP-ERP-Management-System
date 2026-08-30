@@ -106,7 +106,21 @@ export default function LoginPage(): React.ReactElement {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-muted-foreground text-sm">
+        <div className="mt-6 rounded-xl border bg-card/60 p-3 text-xs">
+          <p className="font-medium text-foreground mb-1.5">Comptes de démonstration (PFE) :</p>
+          <div className="flex flex-col gap-1 text-muted-foreground">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Admin :</span>
+              <span className="font-mono text-[11px] text-foreground bg-muted px-1.5 py-0.5 rounded">admin@novaerp.local / Admin123!</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Utilisateur :</span>
+              <span className="font-mono text-[11px] text-foreground bg-muted px-1.5 py-0.5 rounded">sara.amrani@novaerp.local / User1234!</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-4 text-center text-muted-foreground text-sm">
           Pas encore de compte ?{" "}
           <Link href="/register" className="text-foreground hover:underline">
             Créer un compte

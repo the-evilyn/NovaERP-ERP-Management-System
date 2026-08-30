@@ -1,14 +1,23 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  AiBrain01Icon,
+  Exchange02Icon,
+} from "@hugeicons/core-free-icons";
+import Link from "next/link";
 import type React from "react";
-import { useMemo } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   CardFrame,
   CardFrameDescription,
   CardFrameHeader,
   CardFrameTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -17,17 +26,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useArticles } from "@/hooks/use-articles";
-import { useCategories } from "@/hooks/use-categories";
-import { useSuppliers } from "@/hooks/use-suppliers";
+import { QuickReorderDialog } from "@/components/decision/quick-reorder-dialog";
+import { useDashboardStats } from "@/hooks/use-dashboard";
+import { useRecommendations } from "@/hooks/use-decision";
 import { useAllStockMovements } from "@/hooks/use-stock-movements";
-import type { ArticleResponse, StockMovementType } from "@/types/models";
-import {
-  StockValueByCategoryChart,
-  type CategoryStockValue,
-} from "@/components/dashboard/stock-value-by-category-chart";
+import type {
+  ReorderRecommendationResponse,
+  RiskLevel,
+  StockMovementType,
+} from "@/types/models";
+import { StockValueByCategoryChart } from "@/components/dashboard/stock-value-by-category-chart";
 
 const currency = new Intl.NumberFormat("fr-MA", {
   style: "currency",
@@ -57,6 +65,25 @@ const movementLabel: Record<StockMovementType, string> = {
   OUT: "Sortie",
   ADJUSTMENT: "Ajustement",
 };
+
+function RiskBadge({
+  level,
+  score,
+}: {
+  level: RiskLevel;
+  score: number;
+}): React.ReactElement {
+  switch (level) {
+    case "OUT_OF_STOCK":
+      return <Badge variant="destructive">Rupture (100%)</Badge>;
+    case "CRITICAL":
+      return <Badge variant="error">Critique ({Math.round(score)}%)</Badge>;
+    case "WARNING":
+      return <Badge variant="warning">Faible ({Math.round(score)}%)</Badge>;
+    case "NORMAL":
+      return <Badge variant="success">Normal</Badge>;
+  }
+}
 
 function StatItem({
   title,
@@ -91,138 +118,180 @@ function StatItem({
 }
 
 export default function DashboardPage(): React.ReactElement {
-  const { data: articlesPage, isPending: isArticlesPending } = useArticles(
-    0,
-    500,
-  );
-  const { data: categoriesPage, isPending: isCategoriesPending } =
-    useCategories(0, 1);
-  const { data: suppliersPage, isPending: isSuppliersPending } = useSuppliers(
-    0,
-    1,
-  );
+  const [selectedRecommendation, setSelectedRecommendation] =
+    useState<ReorderRecommendationResponse | null>(null);
+
+  const { data: stats, isPending: isStatsPending } = useDashboardStats();
+  const { data: recommendationsPage, isPending: isRecsPending } =
+    useRecommendations("ALL", 0, 5);
   const { data: movementsPage, isPending: isMovementsPending } =
-    useAllStockMovements(0, 8);
+    useAllStockMovements(0, 6);
 
-  const articles = useMemo(
-    () => articlesPage?.content ?? [],
-    [articlesPage],
-  );
-
-  const stats = useMemo(() => {
-    let totalValue = 0;
-    let critical = 0;
-    let faible = 0;
-    let rupture = 0;
-
-    for (const article of articles) {
-      totalValue += article.stockQuantity * article.purchasePriceHt;
-
-      if (article.stockQuantity === 0) {
-        rupture += 1;
-      } else if (article.stockQuantity <= article.minStockQuantity / 3) {
-        critical += 1;
-      } else if (article.stockQuantity <= article.minStockQuantity) {
-        faible += 1;
-      }
-    }
-
-    return { totalValue, critical, faible, rupture };
-  }, [articles]);
-
-  const categoryValues = useMemo<CategoryStockValue[]>(() => {
-    const byCategory = new Map<string, number>();
-
-    for (const article of articles) {
-      const name = article.categoryName ?? "Sans catégorie";
-      const value = article.stockQuantity * article.purchasePriceHt;
-      byCategory.set(name, (byCategory.get(name) ?? 0) + value);
-    }
-
-    const sorted = Array.from(byCategory.entries())
-      .map(([categoryName, value]) => ({ categoryName, value }))
-      .sort((a, b) => b.value - a.value);
-
-    if (sorted.length <= 6) {
-      return sorted;
-    }
-
-    const top = sorted.slice(0, 6);
-    const rest = sorted.slice(6);
-    const otherValue = rest.reduce((sum, c) => sum + c.value, 0);
-
-    return [...top, { categoryName: "Autres", value: otherValue }];
-  }, [articles]);
-
-  const topArticles = useMemo<
-    (ArticleResponse & { stockValue: number })[]
-  >(() => {
-    return [...articles]
-      .map((article) => ({
-        ...article,
-        stockValue: article.stockQuantity * article.purchasePriceHt,
-      }))
-      .sort((a, b) => b.stockValue - a.stockValue)
-      .slice(0, 8);
-  }, [articles]);
-
-  const isPending = isArticlesPending;
+  const categoryValues = stats?.categoryValues ?? [];
+  const topArticles = stats?.topArticles ?? [];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      {/* Inventory Health KPIs */}
       <div className="flex flex-col gap-8 rounded-2xl border bg-card p-6 sm:flex-row sm:justify-between sm:gap-0 sm:p-10">
         <StatItem
           title="Valeur totale du stock"
-          value={currency.format(stats.totalValue)}
-          loading={isPending}
+          value={currency.format(stats?.totalValue ?? 0)}
+          loading={isStatsPending}
         />
         <StatItem
           title="Stock critique"
-          value={String(stats.critical)}
-          loading={isPending}
+          value={String(stats?.criticalStock ?? 0)}
+          loading={isStatsPending}
         />
         <StatItem
           title="Stock faible"
-          value={String(stats.faible)}
-          loading={isPending}
+          value={String(stats?.lowStock ?? 0)}
+          loading={isStatsPending}
         />
         <StatItem
           title="Rupture de stock"
-          value={String(stats.rupture)}
-          loading={isPending}
+          value={String(stats?.outOfStock ?? 0)}
+          loading={isStatsPending}
           last
         />
       </div>
 
+      {/* Catalog Counts */}
       <div className="flex flex-col gap-8 rounded-2xl border bg-card p-6 sm:flex-row sm:justify-between sm:gap-0 sm:p-10">
         <StatItem
           title="Articles"
-          value={String(articlesPage?.totalElements ?? 0)}
-          loading={isArticlesPending}
+          value={String(stats?.totalArticles ?? 0)}
+          loading={isStatsPending}
         />
         <StatItem
           title="Catégories"
-          value={String(categoriesPage?.totalElements ?? 0)}
-          loading={isCategoriesPending}
+          value={String(stats?.totalCategories ?? 0)}
+          loading={isStatsPending}
         />
         <StatItem
           title="Fournisseurs"
-          value={String(suppliersPage?.totalElements ?? 0)}
-          loading={isSuppliersPending}
+          value={String(stats?.totalSuppliers ?? 0)}
+          loading={isStatsPending}
+        />
+        <StatItem
+          title="Clients"
+          value={String(stats?.totalClients ?? 0)}
+          loading={isStatsPending}
           last
         />
       </div>
 
+      {/* Decision Support Reorder Alert Card */}
+      <CardFrame className="border-amber-500/20 bg-gradient-to-r from-amber-500/[0.03] to-transparent">
+        <CardFrameHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
+              <HugeiconsIcon icon={AiBrain01Icon} size={22} strokeWidth={2} />
+            </div>
+            <div>
+              <CardFrameTitle>
+                Aide à la Décision : Alertes Prioritaires de Réapprovisionnement
+              </CardFrameTitle>
+              <CardFrameDescription>
+                Articles critiques nécessitant une commande immédiate pour éviter un arrêt de production
+              </CardFrameDescription>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" render={<Link href="/decisions" />}>
+            Voir tout le plan ({recommendationsPage?.totalElements ?? 0})
+          </Button>
+        </CardFrameHeader>
+
+        <Table variant="card">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Article</TableHead>
+              <TableHead>Stock / Seuil</TableHead>
+              <TableHead>Niveau de risque</TableHead>
+              <TableHead className="text-right">Qté suggérée</TableHead>
+              <TableHead>Fournisseur recommandé</TableHead>
+              <TableHead className="text-right">Budget estimé</TableHead>
+              <TableHead className="text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isRecsPending &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={7}>
+                    <Skeleton className="h-6 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {!isRecsPending && recommendationsPage?.content.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="h-20 text-center text-muted-foreground">
+                  Aucun article en rupture ou critique détecté. Le stock est optimal.
+                </TableCell>
+              </TableRow>
+            )}
+
+            {recommendationsPage?.content.map((rec) => (
+              <TableRow key={rec.articleId}>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{rec.designation}</span>
+                    <span className="text-muted-foreground text-xs">
+                      Réf: {rec.articleReference}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className={rec.currentStock === 0 ? "font-semibold text-destructive" : ""}>
+                    {rec.currentStock} / {rec.minStockQuantity}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <RiskBadge level={rec.riskLevel} score={rec.riskScore} />
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  +{rec.suggestedQuantity} {rec.unitName ?? ""}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {rec.recommendedSupplierName}
+                  {rec.leadTimeDays && (
+                    <span className="ml-1 text-muted-foreground text-xs">
+                      ({rec.leadTimeDays}j)
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {currency.format(rec.estimatedBudget)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedRecommendation(rec)}
+                  >
+                    <HugeiconsIcon icon={Exchange02Icon} strokeWidth={2} />
+                    Commander
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardFrame>
+
+      {/* Category Chart & Top Articles */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CardFrame>
           <CardFrameHeader>
             <CardFrameTitle>Valeur du stock par catégorie</CardFrameTitle>
             <CardFrameDescription>
-              Quantité en stock × prix d&apos;achat HT
+              Agrégation globale sur les 5 604 articles du catalogue
             </CardFrameDescription>
           </CardFrameHeader>
           <div className="px-6 pb-6">
-            {isArticlesPending ? (
+            {isStatsPending ? (
               <div className="flex flex-col gap-4">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-8 w-full" />
@@ -237,7 +306,7 @@ export default function DashboardPage(): React.ReactElement {
         <CardFrame>
           <CardFrameHeader>
             <CardFrameTitle>Meilleurs articles</CardFrameTitle>
-            <CardFrameDescription>Par valeur de stock</CardFrameDescription>
+            <CardFrameDescription>Par valeur de stock totale</CardFrameDescription>
           </CardFrameHeader>
           <Table variant="card">
             <TableHeader>
@@ -247,8 +316,8 @@ export default function DashboardPage(): React.ReactElement {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isArticlesPending &&
-                Array.from({ length: 3 }).map((_, i) => (
+              {isStatsPending &&
+                Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell colSpan={2}>
                       <Skeleton className="h-5 w-full" />
@@ -275,6 +344,7 @@ export default function DashboardPage(): React.ReactElement {
         </CardFrame>
       </div>
 
+      {/* Recent Movements */}
       <CardFrame className="w-full">
         <CardFrameHeader>
           <CardFrameTitle>Mouvements récents</CardFrameTitle>
@@ -325,6 +395,15 @@ export default function DashboardPage(): React.ReactElement {
           </TableBody>
         </Table>
       </CardFrame>
+
+      {/* Modal for Quick Reorder from Dashboard */}
+      <QuickReorderDialog
+        recommendation={selectedRecommendation}
+        open={selectedRecommendation !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRecommendation(null);
+        }}
+      />
     </div>
   );
 }
