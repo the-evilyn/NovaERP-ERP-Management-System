@@ -144,12 +144,24 @@ class AuthControllerTest {
     @Test
     @DisplayName("me endpoint returns authenticated user details")
     void testMe() {
-        var response = authController.me(sampleUser);
+        Authentication auth = new UsernamePasswordAuthenticationToken(sampleUser, null, sampleUser.getAuthorities());
+        var response = authController.me(auth);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().email()).isEqualTo("test@novaerp.local");
         assertThat(response.getBody().fullName()).isEqualTo("Test User");
         assertThat(response.getBody().role()).isEqualTo("USER");
+    }
+
+    @Test
+    @DisplayName("me endpoint with null user throws UNAUTHORIZED")
+    void testMe_NullUserThrowsUnauthorized() {
+        assertThatThrownBy(() -> authController.me(null))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                });
     }
 }

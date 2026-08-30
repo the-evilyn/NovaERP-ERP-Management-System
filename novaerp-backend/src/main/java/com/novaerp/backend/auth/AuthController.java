@@ -79,7 +79,19 @@ public class AuthController {
 
     @GetMapping("/me")
     @Operation(summary = "Get the currently authenticated user")
-    public ResponseEntity<UserResponse> me(@AuthenticationPrincipal User user) {
+    public ResponseEntity<UserResponse> me(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+        }
+        User user = null;
+        if (authentication.getPrincipal() instanceof User u) {
+            user = u;
+        } else if (authentication.getName() != null) {
+            user = userRepository.findByEmail(authentication.getName()).orElse(null);
+        }
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+        }
         return ResponseEntity.ok(UserResponse.from(user));
     }
 

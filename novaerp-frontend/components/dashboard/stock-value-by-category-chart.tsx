@@ -38,18 +38,7 @@ const CATEGORY_COLORS = [
 ];
 const OTHER_COLOR = "#6a7282"; // gray-500
 
-const currency = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-  maximumFractionDigits: 0,
-  notation: "compact",
-});
-
-const currencyFull = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-  maximumFractionDigits: 0,
-});
+import { formatCurrency } from "@/lib/formatters";
 
 function colorFor(categoryName: string, index: number): string {
   return categoryName === "Autres"
@@ -103,7 +92,7 @@ export function StockValueByCategoryChart({
           content={
             <ChartTooltipContent
               hideLabel
-              formatter={(value) => currencyFull.format(Number(value))}
+              formatter={(value) => formatCurrency(Number(value))}
             />
           }
         />
@@ -119,7 +108,9 @@ export function StockValueByCategoryChart({
             position="right"
             className="fill-foreground"
             fontSize={12}
-            formatter={(value) => currency.format(Number(value))}
+            formatter={(value) =>
+              formatCurrency(Number(value), { compact: true })
+            }
           />
         </Bar>
       </BarChart>

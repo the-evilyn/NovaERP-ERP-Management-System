@@ -35,13 +35,8 @@ import {
 } from "@/hooks/use-articles";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatCurrency } from "@/lib/formatters";
 import type { ArticleResponse } from "@/types/models";
-
-const currency = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-  maximumFractionDigits: 2,
-});
 
 const emptyForm = {
   supplierId: "",
@@ -188,8 +183,8 @@ export function ArticleSupplierPrices({
               <TableCell className="font-medium">
                 {price.supplierName}
               </TableCell>
-              <TableCell>{currency.format(price.priceHt)}</TableCell>
-              <TableCell>{currency.format(price.priceTtc)}</TableCell>
+              <TableCell>{formatCurrency(price.priceHt)}</TableCell>
+              <TableCell>{formatCurrency(price.priceTtc)}</TableCell>
               <TableCell className="text-muted-foreground">
                 {price.leadTimeDays != null
                   ? `${price.leadTimeDays} j`

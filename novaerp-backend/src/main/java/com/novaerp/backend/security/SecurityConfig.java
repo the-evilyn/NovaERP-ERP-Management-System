@@ -30,7 +30,10 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**",

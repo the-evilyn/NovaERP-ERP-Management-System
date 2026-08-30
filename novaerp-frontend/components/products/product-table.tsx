@@ -43,13 +43,8 @@ import {
   useDeleteProducts,
   useProducts,
 } from "@/hooks/use-products";
+import { formatCurrency } from "@/lib/formatters";
 import type { Product } from "@/types/models";
-
-const currency = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-  maximumFractionDigits: 0,
-});
 
 function ProductExpandedRow({
   product,
@@ -61,17 +56,17 @@ function ProductExpandedRow({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-semibold text-sm">Détails du produit</h3>
         <span className="text-muted-foreground text-xs">
-          Marge : {currency.format(product.prixVente - product.prixAchat)}
+          Marge : {formatCurrency(product.prixVente - product.prixAchat)}
         </span>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div className="flex flex-col gap-0.5">
           <span className="text-muted-foreground text-xs">Prix d&apos;achat</span>
-          <span className="text-sm">{currency.format(product.prixAchat)}</span>
+          <span className="text-sm">{formatCurrency(product.prixAchat)}</span>
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-muted-foreground text-xs">Prix de vente</span>
-          <span className="text-sm">{currency.format(product.prixVente)}</span>
+          <span className="text-sm">{formatCurrency(product.prixVente)}</span>
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-muted-foreground text-xs">
@@ -164,7 +159,7 @@ export function ProductTable(): React.ReactElement {
       label: "Prix d'achat",
       render: (product) => (
         <span className="text-muted-foreground">
-          {currency.format(product.prixAchat)}
+          {formatCurrency(product.prixAchat)}
         </span>
       ),
     },
@@ -172,7 +167,7 @@ export function ProductTable(): React.ReactElement {
       key: "prixVente",
       label: "Prix de vente",
       render: (product) => (
-        <span className="font-medium">{currency.format(product.prixVente)}</span>
+        <span className="font-medium">{formatCurrency(product.prixVente)}</span>
       ),
     },
     {
@@ -237,7 +232,7 @@ export function ProductTable(): React.ReactElement {
           data && data.totalElements > 0 ? (
             <div className="flex items-center justify-between text-sm">
               <span>Valeur du stock (page actuelle)</span>
-              <span>{currency.format(stockValue)}</span>
+              <span>{formatCurrency(stockValue)}</span>
             </div>
           ) : undefined
         }

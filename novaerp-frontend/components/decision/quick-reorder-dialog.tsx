@@ -22,16 +22,13 @@ import { useCreateStockMovement } from "@/hooks/use-stock-movements";
 import { getApiErrorMessage } from "@/lib/api-error";
 import type { ReorderRecommendationResponse } from "@/types/models";
 
+import { formatCurrency } from "@/lib/formatters";
+
 interface QuickReorderDialogProps {
   recommendation: ReorderRecommendationResponse | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const currency = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-});
 
 export function QuickReorderDialog({
   recommendation,
@@ -113,9 +110,9 @@ export function QuickReorderDialog({
                   <span>
                     Budget estimé:{" "}
                     <strong>
-                      {currency.format(
+                      {formatCurrency(
                         (Number(quantity) || recommendation.suggestedQuantity) *
-                          recommendation.unitPrice,
+                          recommendation.unitPrice
                       )}
                     </strong>
                   </span>

@@ -31,13 +31,8 @@ import {
 import PaginationTable from "@/components/shared/pagination-table";
 import { QuickReorderDialog } from "@/components/decision/quick-reorder-dialog";
 import { useRecommendations, useRiskSummary } from "@/hooks/use-decision";
+import { formatCurrency } from "@/lib/formatters";
 import type { ReorderRecommendationResponse, RiskLevel } from "@/types/models";
-
-const currency = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-  maximumFractionDigits: 0,
-});
 
 function RiskBadge({
   level,
@@ -136,7 +131,7 @@ export function DecisionTable(): React.ReactElement {
             {isSummaryPending ? (
               <Skeleton className="h-9 w-32" />
             ) : (
-              currency.format(summary?.totalEstimatedReorderBudget ?? 0)
+              formatCurrency(summary?.totalEstimatedReorderBudget ?? 0)
             )}
           </div>
           <p className="mt-1 text-muted-foreground text-xs">
@@ -292,13 +287,13 @@ export function DecisionTable(): React.ReactElement {
                     </span>
                     <span className="text-muted-foreground text-xs">
                       {rec.leadTimeDays ? `Délai : ${rec.leadTimeDays} j` : "Délai non spécifié"} &bull;{" "}
-                      {currency.format(rec.unitPrice)}/u
+                      {formatCurrency(rec.unitPrice)}/u
                     </span>
                   </div>
                 </TableCell>
 
-                <TableCell className="text-right font-medium">
-                  {currency.format(rec.estimatedBudget)}
+                <TableCell className="text-right font-semibold">
+                  {formatCurrency(rec.estimatedBudget)}
                 </TableCell>
 
                 <TableCell className="text-right">

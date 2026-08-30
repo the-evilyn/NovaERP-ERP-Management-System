@@ -36,20 +36,7 @@ import type {
   StockMovementType,
 } from "@/types/models";
 import { StockValueByCategoryChart } from "@/components/dashboard/stock-value-by-category-chart";
-
-const currency = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-  maximumFractionDigits: 0,
-});
-
-const dateTimeFormat = new Intl.DateTimeFormat("fr-FR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+import { formatCurrency, formatDateTime } from "@/lib/formatters";
 
 const movementBadgeVariant: Record<
   StockMovementType,
@@ -136,7 +123,7 @@ export default function DashboardPage(): React.ReactElement {
       <div className="flex flex-col gap-8 rounded-2xl border bg-card p-6 sm:flex-row sm:justify-between sm:gap-0 sm:p-10">
         <StatItem
           title="Valeur totale du stock"
-          value={currency.format(stats?.totalValue ?? 0)}
+          value={formatCurrency(stats?.totalValue ?? 0)}
           loading={isStatsPending}
         />
         <StatItem
@@ -263,7 +250,7 @@ export default function DashboardPage(): React.ReactElement {
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  {currency.format(rec.estimatedBudget)}
+                  {formatCurrency(rec.estimatedBudget)}
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
@@ -334,7 +321,7 @@ export default function DashboardPage(): React.ReactElement {
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge variant="success">
-                      {currency.format(article.stockValue)}
+                      {formatCurrency(article.stockValue)}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -388,7 +375,7 @@ export default function DashboardPage(): React.ReactElement {
                   {movement.createdByName}
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground">
-                  {dateTimeFormat.format(new Date(movement.createdAt))}
+                  {formatDateTime(movement.createdAt)}
                 </TableCell>
               </TableRow>
             ))}

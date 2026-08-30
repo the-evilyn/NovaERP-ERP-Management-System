@@ -13,8 +13,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.novaerp.backend.user.UserRepository;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/stock/movements")
@@ -24,6 +26,7 @@ public class StockMovementController {
 
     private final StockMovementService stockMovementService;
     private final StockMovementRepository stockMovementRepository;
+    private final UserRepository userRepository;
 
     @GetMapping
     @Operation(summary = "List all stock movements across all articles")
@@ -43,7 +46,16 @@ public class StockMovementController {
     @PostMapping
     @Operation(summary = "Record a stock movement (in, out, or adjustment)")
     public ResponseEntity<StockMovementResponse> record(
-            @Valid @RequestBody StockMovementRequest request, @AuthenticationPrincipal User user) {
+            @Valid @RequestBody StockMovementRequest request, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+        }
+        User user = null;
+        if (authentication.getPrincipal() instanceof User u) {
+            user = u;
+        } else if (authentication.getName() != null) {
+            user = userRepository.findByEmail(authentication.getName()).orElse(null);
+        }
         StockMovement movement = stockMovementService.record(request, user);
         return ResponseEntity.status(HttpStatus.CREATED).body(StockMovementResponse.from(movement));
     }

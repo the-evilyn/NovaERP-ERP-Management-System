@@ -39,13 +39,8 @@ import { CreateArticleDialog } from "@/components/articles/create-article-dialog
 import { EditArticleDialog } from "@/components/articles/edit-article-dialog";
 import { useArticles, useDeleteArticle } from "@/hooks/use-articles";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatCurrency } from "@/lib/formatters";
 import type { ArticleResponse } from "@/types/models";
-
-const currency = new Intl.NumberFormat("fr-MA", {
-  style: "currency",
-  currency: "MAD",
-  maximumFractionDigits: 2,
-});
 
 export function ArticleTable(): React.ReactElement {
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,7 +106,7 @@ export function ArticleTable(): React.ReactElement {
       label: "Prix d'achat HT",
       render: (article) => (
         <span className="text-muted-foreground">
-          {currency.format(article.purchasePriceHt)}
+          {formatCurrency(article.purchasePriceHt)}
         </span>
       ),
     },
@@ -120,7 +115,7 @@ export function ArticleTable(): React.ReactElement {
       label: "Prix de vente HT",
       render: (article) => (
         <span className="font-medium">
-          {currency.format(article.salePriceHt)}
+          {formatCurrency(article.salePriceHt)}
         </span>
       ),
     },

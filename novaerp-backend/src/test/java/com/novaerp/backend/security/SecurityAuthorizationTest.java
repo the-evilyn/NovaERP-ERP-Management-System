@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -90,6 +91,16 @@ class SecurityAuthorizationTest {
                 .andExpect(result -> {
                     int status = result.getResponse().getStatus();
                     org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("Unauthenticated request to /api/auth/me is blocked")
+    void testUnauthenticated_CannotAccessAuthMe() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
                 });
     }
 }

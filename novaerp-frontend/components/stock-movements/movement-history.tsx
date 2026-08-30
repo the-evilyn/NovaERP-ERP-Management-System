@@ -14,15 +14,8 @@ import {
 } from "@/components/ui/table";
 import PaginationTable from "@/components/shared/pagination-table";
 import { useArticleMovements } from "@/hooks/use-stock-movements";
+import { formatDateTime } from "@/lib/formatters";
 import type { ArticleResponse, StockMovementType } from "@/types/models";
-
-const dateFormatter = new Intl.DateTimeFormat("fr-MA", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 const typeLabels: Record<StockMovementType, string> = {
   IN: "Entrée",
@@ -105,7 +98,7 @@ export function MovementHistory({
             {(movements ?? []).map((movement) => (
               <TableRow key={movement.id}>
                 <TableCell className="ps-4 text-muted-foreground">
-                  {dateFormatter.format(new Date(movement.createdAt))}
+                  {formatDateTime(movement.createdAt)}
                 </TableCell>
                 <TableCell>
                   <TypeBadge type={movement.type} />
