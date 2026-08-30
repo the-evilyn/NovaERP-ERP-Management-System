@@ -1,0 +1,24 @@
+package com.novaerp.backend.stock;
+
+import com.novaerp.backend.stock.dto.DashboardStatsResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/stock/dashboard")
+@RequiredArgsConstructor
+@Tag(name = "Stock - Dashboard", description = "Aggregated stock analytics & KPIs")
+public class DashboardStatsController {
+
+    private final DashboardStatsService dashboardStatsService;
+
+    @GetMapping("/stats")
+    @Operation(summary = "Get aggregated global inventory and ERP statistics")
+    public DashboardStatsResponse getStats() {
+        return dashboardStatsService.getStats();
+    }
+}
