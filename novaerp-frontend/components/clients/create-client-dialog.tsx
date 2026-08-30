@@ -1,7 +1,10 @@
 "use client";
 
+import { AlertCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type React from "react";
 import { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +18,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useCreateClients } from "@/hooks/use-clients";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 interface CreateClientDialogProps {
   open: boolean;
@@ -33,23 +37,29 @@ export function CreateClientDialog({
   onOpenChange,
 }: CreateClientDialogProps): React.ReactElement {
   const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState<string | null>(null);
   const createClients = useCreateClients();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nom.trim()) return;
+    setError(null);
 
-    await createClients.mutateAsync([
-      {
-        nom: form.nom.trim(),
-        email: form.email.trim() || null,
-        telephone: form.telephone.trim() || null,
-        adresse: form.adresse.trim() || null,
-      },
-    ]);
+    try {
+      await createClients.mutateAsync([
+        {
+          nom: form.nom.trim(),
+          email: form.email.trim() || null,
+          telephone: form.telephone.trim() || null,
+          adresse: form.adresse.trim() || null,
+        },
+      ]);
 
-    setForm(emptyForm);
-    onOpenChange(false);
+      setForm(emptyForm);
+      onOpenChange(false);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Impossible de créer le client."));
+    }
   };
 
   return (
@@ -57,7 +67,10 @@ export function CreateClientDialog({
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
-        if (!next) setForm(emptyForm);
+        if (!next) {
+          setForm(emptyForm);
+          setError(null);
+        }
       }}
     >
       <DialogPopup className="max-w-md">
@@ -67,6 +80,12 @@ export function CreateClientDialog({
 
         <Form onSubmit={handleSubmit} id="create-client-form">
           <DialogPanel className="flex flex-col gap-4">
+            {error && (
+              <Alert variant="error">
+                <HugeiconsIcon icon={AlertCircleIcon} />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <Field>
               <FieldLabel htmlFor="nom">Nom</FieldLabel>
               <Input
