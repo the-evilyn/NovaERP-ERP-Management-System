@@ -127,7 +127,7 @@ export function EditArticleDialog({
     >
       <DialogPopup className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Modifier l'article</DialogTitle>
+          <DialogTitle>Modifier l&apos;article</DialogTitle>
         </DialogHeader>
 
         <Form onSubmit={handleSubmit} id="edit-article-form">
@@ -241,7 +241,7 @@ export function EditArticleDialog({
             <div className="grid grid-cols-3 gap-4">
               <Field>
                 <FieldLabel htmlFor="edit-purchasePriceHt">
-                  Prix d'achat HT
+                  Prix d&apos;achat HT
                 </FieldLabel>
                 <Input
                   id="edit-purchasePriceHt"

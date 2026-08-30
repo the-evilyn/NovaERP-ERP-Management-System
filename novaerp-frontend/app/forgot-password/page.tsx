@@ -51,7 +51,7 @@ export default function ForgotPasswordPage(): React.ReactElement {
             <HugeiconsIcon icon={CheckmarkCircle01Icon} />
             <AlertDescription>
               Si un compte existe pour cet email, un lien de réinitialisation
-              vient d'être envoyé.
+              vient d&apos;être envoyé.
             </AlertDescription>
           </Alert>
         ) : (

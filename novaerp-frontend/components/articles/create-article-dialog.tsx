@@ -217,7 +217,7 @@ export function CreateArticleDialog({
             <div className="grid grid-cols-3 gap-4">
               <Field>
                 <FieldLabel htmlFor="purchasePriceHt">
-                  Prix d'achat HT
+                  Prix d&apos;achat HT
                 </FieldLabel>
                 <Input
                   id="purchasePriceHt"
@@ -324,7 +324,7 @@ export function CreateArticleDialog({
               form="create-article-form"
               loading={createArticle.isPending}
             >
-              Créer l'article
+              Créer l&apos;article
             </Button>
           </DialogFooter>
         </Form>

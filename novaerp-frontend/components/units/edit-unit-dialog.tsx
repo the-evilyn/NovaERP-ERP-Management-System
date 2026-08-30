@@ -79,7 +79,7 @@ export function EditUnitDialog({
     >
       <DialogPopup className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Modifier l'unité</DialogTitle>
+          <DialogTitle>Modifier l&apos;unité</DialogTitle>
         </DialogHeader>
 
         <Form onSubmit={handleSubmit} id="edit-unit-form">

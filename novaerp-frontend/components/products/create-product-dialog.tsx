@@ -108,7 +108,7 @@ export function CreateProductDialog({
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field>
-                <FieldLabel htmlFor="prixAchat">Prix d'achat</FieldLabel>
+                <FieldLabel htmlFor="prixAchat">Prix d&apos;achat</FieldLabel>
                 <Input
                   id="prixAchat"
                   type="number"

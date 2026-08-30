@@ -114,7 +114,7 @@ export function CreateUnitDialog({
               form="create-unit-form"
               loading={createUnit.isPending}
             >
-              Créer l'unité
+              Créer l&apos;unité
             </Button>
           </DialogFooter>
         </Form>

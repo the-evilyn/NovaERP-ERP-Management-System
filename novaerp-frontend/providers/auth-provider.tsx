@@ -34,7 +34,9 @@ export function AuthProvider({
   useEffect(() => {
     const token = getCookie(TOKEN_COOKIE_NAME);
     if (!token) {
-      setIsLoading(false);
+      queueMicrotask(() => {
+        setIsLoading(false);
+      });
       return;
     }
 

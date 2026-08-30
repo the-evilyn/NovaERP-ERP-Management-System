@@ -1,8 +1,7 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardFrame, CardHeader } from "@/components/ui/card";
 import {
@@ -48,10 +47,12 @@ export function MovementHistory({
 }): React.ReactElement {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [prevArticleId, setPrevArticleId] = useState(article.id);
 
-  useEffect(() => {
+  if (article.id !== prevArticleId) {
+    setPrevArticleId(article.id);
     setCurrentPage(1);
-  }, [article.id]);
+  }
 
   const { data, isPending } = useArticleMovements(
     article.id,

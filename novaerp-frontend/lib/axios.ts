@@ -33,6 +33,7 @@ api.interceptors.response.use(
       !window.location.pathname.startsWith('/login')
     ) {
       deleteCookie(TOKEN_COOKIE_NAME);
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = '/login';
     }
     return Promise.reject(error);

@@ -66,7 +66,7 @@ function ProductExpandedRow({
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div className="flex flex-col gap-0.5">
-          <span className="text-muted-foreground text-xs">Prix d'achat</span>
+          <span className="text-muted-foreground text-xs">Prix d&apos;achat</span>
           <span className="text-sm">{currency.format(product.prixAchat)}</span>
         </div>
         <div className="flex flex-col gap-0.5">
