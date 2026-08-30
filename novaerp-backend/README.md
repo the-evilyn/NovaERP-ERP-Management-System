@@ -42,25 +42,32 @@ Then run the app, pointing it at the mapped port:
 DB_PORT=5433 ./mvnw spring-boot:run
 ```
 
-## Auth endpoints
+## Main API Endpoints
 
-| Method | Path              | Auth       | Description               |
-|--------|-------------------|------------|----------------------------|
-| POST   | `/api/auth/register` | Public  | Create a user, returns JWT |
-| POST   | `/api/auth/login`    | Public  | Login, returns JWT         |
-| GET    | `/api/auth/me`        | Bearer  | Current authenticated user |
+| Domain | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| **Auth** | POST | `/api/auth/register` | Public | Register new user |
+| **Auth** | POST | `/api/auth/login` | Public | Authenticate and obtain JWT |
+| **Auth** | GET | `/api/auth/me` | Bearer | Current user profile |
+| **Dashboard** | GET | `/api/stock/dashboard/stats` | Bearer | Real-time global SQL KPI aggregation |
+| **Decision** | GET | `/api/stock/decisions` | Bearer | Replenishment recommendations & risk scores |
+| **Decision** | GET | `/api/stock/decisions/summary` | Bearer | Aggregate at-risk counts & replenishment budget |
+| **Clients** | GET | `/api/clients` | Bearer | Paginated client directory with search |
+| **Clients** | POST/PUT/DELETE | `/api/clients/**` | ADMIN | Manage industrial clients |
+| **Articles** | GET/POST/PUT/DELETE | `/api/stock/articles/**` | Bearer/ADMIN | Product catalogue management |
+| **Movements** | POST | `/api/stock/movements` | ADMIN/USER | Record stock entry/exit/adjustment |
+| **Import/Export**| GET/POST | `/api/stock/{articles\|categories\|suppliers}/{export\|import}` | ADMIN | CSV batch processing |
 
-Example:
+## Tests
+
+Execute the full suite of 45 unit and integration tests:
 
 ```bash
-curl -X POST http://localhost:8081/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"fullName":"Test User","email":"test@novaerp.local","password":"password123"}'
+./mvnw clean test
 ```
-
-Use the returned `token` as `Authorization: Bearer <token>` on subsequent requests, or click "Authorize" in Swagger UI.
 
 ## Notes
 
-- `spring.jpa.hibernate.ddl-auto=update` is used for now (fresh app) — swap for migrations (Flyway/Liquibase) before this goes anywhere near production.
-- JWT secret / expiration are configurable via `JWT_SECRET` / `JWT_EXPIRATION_MS` env vars — the checked-in default is for local dev only.
+- `spring.jpa.hibernate.ddl-auto=update` is used for schema synchronization.
+- Test suite connects automatically to PostgreSQL on localhost:5433 via `src/test/resources/application.yml`.
+- Demo users: `admin@novaerp.local` (ADMIN) and `sara.amrani@novaerp.local` (USER).
