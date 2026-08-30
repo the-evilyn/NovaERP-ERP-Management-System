@@ -375,3 +375,53 @@ export interface StockRiskSummaryResponse {
   totalEstimatedReorderBudget: number;
   averageRiskScore: number;
 }
+
+// ---- Sales Orders ----
+export type SaleOrderStatus = "DRAFT" | "CONFIRMED" | "DELIVERED" | "CANCELLED";
+
+export interface SaleOrderItemRequest {
+  articleId: number;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+}
+
+export interface SaleOrderRequest {
+  clientId: number;
+  items: SaleOrderItemRequest[];
+  taxRate?: number;
+  notes?: string;
+}
+
+export interface SaleOrderItemResponse {
+  id: number;
+  articleId: number;
+  articleReference: string;
+  articleDesignation: string;
+  unitSymbol: string | null;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  totalHt: number;
+  totalTtc: number;
+}
+
+export interface SaleOrderResponse {
+  id: number;
+  orderNumber: string;
+  clientId: number;
+  clientName: string;
+  clientCity: string | null;
+  status: SaleOrderStatus;
+  subtotalHt: number;
+  taxRate: number;
+  taxAmount: number;
+  totalTtc: number;
+  notes: string | null;
+  createdById: number | null;
+  createdByName: string | null;
+  createdAt: string;
+  confirmedAt: string | null;
+  deliveredAt: string | null;
+  items: SaleOrderItemResponse[];
+}

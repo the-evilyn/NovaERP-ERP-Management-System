@@ -1,7 +1,10 @@
 package com.novaerp.backend.config;
 
+import jakarta.persistence.EntityManagerFactory;
 import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,5 +24,23 @@ public class LiquibaseConfig {
         liquibase.setDataSource(dataSource);
         liquibase.setChangeLog(changeLog);
         return liquibase;
+    }
+
+    @Bean
+    public static BeanFactoryPostProcessor dependsOnPostProcessor() {
+        return beanFactory -> {
+            for (String beanName : beanFactory.getBeanNamesForType(EntityManagerFactory.class)) {
+                BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+                String[] existing = bd.getDependsOn();
+                if (existing == null || existing.length == 0) {
+                    bd.setDependsOn("liquibase");
+                } else {
+                    String[] updated = new String[existing.length + 1];
+                    System.arraycopy(existing, 0, updated, 0, existing.length);
+                    updated[existing.length] = "liquibase";
+                    bd.setDependsOn(updated);
+                }
+            }
+        };
     }
 }

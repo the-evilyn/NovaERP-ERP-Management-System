@@ -5,6 +5,7 @@ import {
   DashboardSquare01Icon,
   Exchange02Icon,
   FileExportIcon,
+  Invoice01Icon,
   Package02Icon,
   ShoppingCart01Icon,
   Store01Icon,
@@ -33,6 +34,7 @@ const navMain: NavMainItem[] = [
   { title: "Catégories", url: "/categories", icon: Store01Icon },
   { title: "Fournisseurs", url: "/suppliers", icon: TruckDeliveryIcon },
   { title: "Clients", url: "/clients", icon: User02Icon },
+  { title: "Commandes Ventes", url: "/sales", icon: Invoice01Icon },
   { title: "Unités", url: "/units", icon: Package02Icon },
   {
     title: "Mouvements de stock",

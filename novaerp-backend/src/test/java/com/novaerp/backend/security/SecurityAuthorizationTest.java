@@ -103,4 +103,37 @@ class SecurityAuthorizationTest {
                     org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
                 });
     }
+
+    @Test
+    @DisplayName("ROLE_USER cannot POST to /api/sales/orders (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotPostSaleOrder() throws Exception {
+        mockMvc.perform(post("/api/sales/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clientId\":1,\"items\":[]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("ROLE_ADMIN can access POST /api/sales/orders (not 403 Forbidden)")
+    @WithMockUser(username = "admin@novaerp.local", roles = {"ADMIN"})
+    void testAdminRole_CanPostSaleOrder() throws Exception {
+        mockMvc.perform(post("/api/sales/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clientId\":1,\"items\":[]}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("Unauthenticated request to /api/sales/orders is blocked")
+    void testSalesOrders_UnauthenticatedBlocked() throws Exception {
+        mockMvc.perform(get("/api/sales/orders"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
+                });
+    }
 }
