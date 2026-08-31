@@ -35,6 +35,7 @@ const navMain: NavMainItem[] = [
   { title: "Fournisseurs", url: "/suppliers", icon: TruckDeliveryIcon },
   { title: "Clients", url: "/clients", icon: User02Icon },
   { title: "Commandes Ventes", url: "/sales", icon: Invoice01Icon },
+  { title: "Commandes Achats", url: "/purchases", icon: TruckDeliveryIcon },
   { title: "Unités", url: "/units", icon: Package02Icon },
   {
     title: "Mouvements de stock",

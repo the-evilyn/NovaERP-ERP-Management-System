@@ -425,3 +425,53 @@ export interface SaleOrderResponse {
   deliveredAt: string | null;
   items: SaleOrderItemResponse[];
 }
+
+// ---- Purchase Orders ----
+export type PurchaseOrderStatus = "DRAFT" | "CONFIRMED" | "RECEIVED" | "CANCELLED";
+
+export interface PurchaseOrderItemRequest {
+  articleId: number;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+}
+
+export interface PurchaseOrderRequest {
+  supplierId: number;
+  items: PurchaseOrderItemRequest[];
+  taxRate?: number;
+  notes?: string;
+}
+
+export interface PurchaseOrderItemResponse {
+  id: number;
+  articleId: number;
+  articleReference: string;
+  articleDesignation: string;
+  unitSymbol: string | null;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  totalHt: number;
+  totalTtc: number;
+}
+
+export interface PurchaseOrderResponse {
+  id: number;
+  orderNumber: string;
+  supplierId: number;
+  supplierName: string;
+  status: PurchaseOrderStatus;
+  subtotalHt: number;
+  taxRate: number;
+  taxAmount: number;
+  totalTtc: number;
+  notes: string | null;
+  createdById: number | null;
+  createdByName: string | null;
+  createdAt: string;
+  confirmedAt: string | null;
+  receivedAt: string | null;
+  items: PurchaseOrderItemResponse[];
+}
+

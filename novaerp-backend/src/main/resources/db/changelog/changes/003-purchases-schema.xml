@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 1. PURCHASE ORDERS TABLE -->
+    <changeSet id="003-create-table-purchase-orders" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="purchase_orders"/>
+            </not>
+        </preConditions>
+        <createTable tableName="purchase_orders">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="purchase_orders_pkey" nullable="false"/>
+            </column>
+            <column name="order_number" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_purchase_orders_number"/>
+            </column>
+            <column name="supplier_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_purchase_orders_supplier" references="suppliers(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(30)" defaultValue="DRAFT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subtotal_ht" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="NUMERIC(5,2)" defaultValueNumeric="20.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_amount" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ttc" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="VARCHAR(1000)"/>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_purchase_orders_user" references="users(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="confirmed_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="received_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+    </changeSet>
+
+    <!-- 2. PURCHASE ORDER ITEMS TABLE -->
+    <changeSet id="003-create-table-purchase-order-items" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="purchase_order_items"/>
+            </not>
+        </preConditions>
+        <createTable tableName="purchase_order_items">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="purchase_order_items_pkey" nullable="false"/>
+            </column>
+            <column name="purchase_order_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_po_items_order" references="purchase_orders(id)" deleteCascade="true"/>
+            </column>
+            <column name="article_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_po_items_article" references="articles(id)"/>
+            </column>
+            <column name="quantity" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="NUMERIC(5,2)" defaultValueNumeric="20.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ht" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ttc" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
