@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 1. CUSTOMER INVOICES TABLE -->
+    <changeSet id="004-create-table-customer-invoices" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="customer_invoices"/>
+            </not>
+        </preConditions>
+        <createTable tableName="customer_invoices">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="customer_invoices_pkey" nullable="false"/>
+            </column>
+            <column name="invoice_number" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_customer_invoices_number"/>
+            </column>
+            <column name="client_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_customer_invoices_client" references="clients(id)"/>
+            </column>
+            <column name="sale_order_id" type="BIGINT">
+                <constraints foreignKeyName="fk_customer_invoices_sale_order" references="sale_orders(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(30)" defaultValue="DRAFT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subtotal_ht" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="NUMERIC(5,2)" defaultValueNumeric="20.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_amount" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ttc" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="VARCHAR(1000)"/>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_customer_invoices_user" references="users(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="issued_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="paid_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="cancelled_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+    </changeSet>
+
+    <!-- 2. CUSTOMER INVOICE ITEMS TABLE -->
+    <changeSet id="004-create-table-customer-invoice-items" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="customer_invoice_items"/>
+            </not>
+        </preConditions>
+        <createTable tableName="customer_invoice_items">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="customer_invoice_items_pkey" nullable="false"/>
+            </column>
+            <column name="customer_invoice_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_ci_items_invoice" references="customer_invoices(id)" deleteCascade="true"/>
+            </column>
+            <column name="article_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_ci_items_article" references="articles(id)"/>
+            </column>
+            <column name="quantity" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="NUMERIC(5,2)" defaultValueNumeric="20.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ht" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ttc" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 3. SUPPLIER INVOICES TABLE -->
+    <changeSet id="004-create-table-supplier-invoices" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="supplier_invoices"/>
+            </not>
+        </preConditions>
+        <createTable tableName="supplier_invoices">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="supplier_invoices_pkey" nullable="false"/>
+            </column>
+            <column name="invoice_number" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_supplier_invoices_number"/>
+            </column>
+            <column name="supplier_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_supplier_invoices_supplier" references="suppliers(id)"/>
+            </column>
+            <column name="purchase_order_id" type="BIGINT">
+                <constraints foreignKeyName="fk_supplier_invoices_purchase_order" references="purchase_orders(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(30)" defaultValue="DRAFT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subtotal_ht" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="NUMERIC(5,2)" defaultValueNumeric="20.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_amount" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ttc" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="VARCHAR(1000)"/>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_supplier_invoices_user" references="users(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="received_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="paid_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="cancelled_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+    </changeSet>
+
+    <!-- 4. SUPPLIER INVOICE ITEMS TABLE -->
+    <changeSet id="004-create-table-supplier-invoice-items" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="supplier_invoice_items"/>
+            </not>
+        </preConditions>
+        <createTable tableName="supplier_invoice_items">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="supplier_invoice_items_pkey" nullable="false"/>
+            </column>
+            <column name="supplier_invoice_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_si_items_invoice" references="supplier_invoices(id)" deleteCascade="true"/>
+            </column>
+            <column name="article_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_si_items_article" references="articles(id)"/>
+            </column>
+            <column name="quantity" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="NUMERIC(5,2)" defaultValueNumeric="20.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ht" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_ttc" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

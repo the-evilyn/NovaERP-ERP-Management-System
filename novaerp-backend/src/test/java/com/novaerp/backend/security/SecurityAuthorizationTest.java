@@ -169,4 +169,70 @@ class SecurityAuthorizationTest {
                     org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
                 });
     }
+
+    @Test
+    @DisplayName("ROLE_USER cannot POST to /api/invoices/customers (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotPostCustomerInvoice() throws Exception {
+        mockMvc.perform(post("/api/invoices/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clientId\":1,\"items\":[]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("ROLE_ADMIN can access POST /api/invoices/customers (not 403 Forbidden)")
+    @WithMockUser(username = "admin@novaerp.local", roles = {"ADMIN"})
+    void testAdminRole_CanPostCustomerInvoice() throws Exception {
+        mockMvc.perform(post("/api/invoices/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clientId\":1,\"items\":[]}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("Unauthenticated request to /api/invoices/customers is blocked")
+    void testCustomerInvoices_UnauthenticatedBlocked() throws Exception {
+        mockMvc.perform(get("/api/invoices/customers"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
+                });
+    }
+
+    @Test
+    @DisplayName("ROLE_USER cannot POST to /api/invoices/suppliers (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotPostSupplierInvoice() throws Exception {
+        mockMvc.perform(post("/api/invoices/suppliers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"supplierId\":1,\"items\":[]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("ROLE_ADMIN can access POST /api/invoices/suppliers (not 403 Forbidden)")
+    @WithMockUser(username = "admin@novaerp.local", roles = {"ADMIN"})
+    void testAdminRole_CanPostSupplierInvoice() throws Exception {
+        mockMvc.perform(post("/api/invoices/suppliers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"supplierId\":1,\"items\":[]}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("Unauthenticated request to /api/invoices/suppliers is blocked")
+    void testSupplierInvoices_UnauthenticatedBlocked() throws Exception {
+        mockMvc.perform(get("/api/invoices/suppliers"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
+                });
+    }
 }
