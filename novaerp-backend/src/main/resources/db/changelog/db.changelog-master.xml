@@ -9,5 +9,6 @@
     <include file="db/changelog/changes/002-sales-schema.xml"/>
     <include file="db/changelog/changes/003-purchases-schema.xml"/>
     <include file="db/changelog/changes/004-invoices-schema.xml"/>
+    <include file="db/changelog/changes/005-payments-schema.xml"/>
 
 </databaseChangeLog>

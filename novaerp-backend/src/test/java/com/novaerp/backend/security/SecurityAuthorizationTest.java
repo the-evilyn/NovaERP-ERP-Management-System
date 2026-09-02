@@ -235,4 +235,56 @@ class SecurityAuthorizationTest {
                     org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
                 });
     }
+
+    @Test
+    @DisplayName("ROLE_USER cannot POST to /api/payments/customer-invoices/1 (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotPostPayment() throws Exception {
+        mockMvc.perform(post("/api/payments/customer-invoices/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100,\"paymentMethod\":\"CASH\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("ROLE_USER cannot DELETE to /api/payments/1 (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotDeletePayment() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/payments/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("ROLE_ADMIN can access POST /api/payments/customer-invoices/1 (not 403 Forbidden)")
+    @WithMockUser(username = "admin@novaerp.local", roles = {"ADMIN"})
+    void testAdminRole_CanPostPayment() throws Exception {
+        mockMvc.perform(post("/api/payments/customer-invoices/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100,\"paymentMethod\":\"CASH\"}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("ROLE_USER can GET /api/payments (not 403 or 401)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CanGetPayments() throws Exception {
+        mockMvc.perform(get("/api/payments"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotIn(401, 403);
+                });
+    }
+
+    @Test
+    @DisplayName("Unauthenticated request to /api/payments is blocked")
+    void testPayments_UnauthenticatedBlocked() throws Exception {
+        mockMvc.perform(get("/api/payments"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
+                });
+    }
 }
