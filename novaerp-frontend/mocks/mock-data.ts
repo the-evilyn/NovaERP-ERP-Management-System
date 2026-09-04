@@ -5,7 +5,6 @@ import type {
   User,
   Client,
   Product,
-  Invoice,
   StockMovement,
   StockAlert,
   AuditLog,
@@ -145,84 +144,6 @@ export const mockProducts: Product[] = [
     categorie: 'Boissons',
     createdAt: daysAgo(60),
     updatedAt: daysAgo(55), // dormant: no movement for a long time
-  },
-];
-
-// ---------- Invoices ----------
-export const mockInvoices: Invoice[] = [
-  {
-    id: 1,
-    numero: 'FAC-2026-0001',
-    clientId: 1,
-    clientNom: 'Société Atlas Distribution',
-    lignes: [
-      {
-        id: 1,
-        productId: 1,
-        productNom: 'Huile de table 5L',
-        quantite: 20,
-        prixUnitaire: 105,
-        total: 2100,
-      },
-      {
-        id: 2,
-        productId: 3,
-        productNom: 'Farine 10kg',
-        quantite: 10,
-        prixUnitaire: 72,
-        total: 720,
-      },
-    ],
-    totalHT: 2820,
-    tva: 564,
-    totalTTC: 3384,
-    statut: 'VALIDEE',
-    createdAt: daysAgo(7),
-    updatedAt: daysAgo(7),
-  },
-  {
-    id: 2,
-    numero: 'FAC-2026-0002',
-    clientId: 2,
-    clientNom: 'Marjane Market Kenitra',
-    lignes: [
-      {
-        id: 3,
-        productId: 2,
-        productNom: 'Sucre 2kg',
-        quantite: 50,
-        prixUnitaire: 24,
-        total: 1200,
-      },
-    ],
-    totalHT: 1200,
-    tva: 240,
-    totalTTC: 1440,
-    statut: 'VALIDEE',
-    createdAt: daysAgo(3),
-    updatedAt: daysAgo(3),
-  },
-  {
-    id: 3,
-    numero: 'FAC-2026-0003',
-    clientId: 4,
-    clientNom: 'Café Restaurant Océan',
-    lignes: [
-      {
-        id: 4,
-        productId: 4,
-        productNom: 'Eau minérale pack 6x1.5L',
-        quantite: 15,
-        prixUnitaire: 30,
-        total: 450,
-      },
-    ],
-    totalHT: 450,
-    tva: 90,
-    totalTTC: 540,
-    statut: 'BROUILLON',
-    createdAt: daysAgo(1),
-    updatedAt: now,
   },
 ];
 

@@ -5,7 +5,6 @@
 import type {
   Client,
   Product,
-  Invoice,
   StockMovement,
   StockAlert,
   AuditLog,
@@ -14,7 +13,6 @@ import type {
 import {
   mockClients,
   mockProducts,
-  mockInvoices,
   mockStockMovements,
   mockAlerts,
   mockAuditLogs,
@@ -114,19 +112,6 @@ export async function updateProduct(
   if (!product) throw new Error('Produit introuvable');
   Object.assign(product, data, { updatedAt: new Date().toISOString() });
   return product;
-}
-
-// ---------- Invoices ----------
-export async function getInvoices(page = 0, size = 10): Promise<Page<Invoice>> {
-  await delay();
-  return toPage(mockInvoices, page, size);
-}
-
-export async function getInvoice(id: number): Promise<Invoice> {
-  await delay();
-  const invoice = mockInvoices.find((i) => i.id === id);
-  if (!invoice) throw new Error('Facture introuvable');
-  return invoice;
 }
 
 // ---------- Stock ----------

@@ -95,29 +95,6 @@ export interface Product extends BaseEntity {
   categorie: string | null;
 }
 
-// ---------- Invoice ----------
-export type InvoiceStatus = 'BROUILLON' | 'VALIDEE' | 'ANNULEE';
-
-export interface InvoiceLine {
-  id: number;
-  productId: number;
-  productNom: string;
-  quantite: number;
-  prixUnitaire: number;
-  total: number;
-}
-
-export interface Invoice extends BaseEntity {
-  numero: string; // FAC-2026-0001
-  clientId: number;
-  clientNom: string;
-  lignes: InvoiceLine[];
-  totalHT: number;
-  tva: number;
-  totalTTC: number;
-  statut: InvoiceStatus;
-}
-
 // ---------- Stock ----------
 export type MovementType = 'ENTREE' | 'SORTIE';
 export type MovementReason = 'ACHAT' | 'VENTE' | 'CORRECTION' | 'RETOUR';
@@ -475,3 +452,89 @@ export interface PurchaseOrderResponse {
   items: PurchaseOrderItemResponse[];
 }
 
+// ---- Invoices ----
+export type CustomerInvoiceStatus = "DRAFT" | "ISSUED" | "PAID" | "CANCELLED";
+export type SupplierInvoiceStatus = "DRAFT" | "RECEIVED" | "PAID" | "CANCELLED";
+
+export interface CustomerInvoiceItemRequest {
+  articleId: number;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+}
+
+export type SupplierInvoiceItemRequest = CustomerInvoiceItemRequest;
+
+export interface CustomerInvoiceRequest {
+  clientId: number;
+  saleOrderId?: number;
+  items: CustomerInvoiceItemRequest[];
+  taxRate?: number;
+  notes?: string;
+}
+
+export interface SupplierInvoiceRequest {
+  supplierId: number;
+  purchaseOrderId?: number;
+  items: SupplierInvoiceItemRequest[];
+  taxRate?: number;
+  notes?: string;
+}
+
+export interface InvoiceItemResponse {
+  id: number;
+  articleId: number;
+  articleReference: string;
+  articleDesignation: string;
+  unitSymbol: string | null;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number | null;
+  totalHt: number;
+  totalTtc: number;
+}
+
+export interface CustomerInvoiceResponse {
+  id: number;
+  invoiceNumber: string;
+  clientId: number;
+  clientName: string;
+  clientCity: string | null;
+  saleOrderId: number | null;
+  saleOrderNumber: string | null;
+  status: CustomerInvoiceStatus;
+  subtotalHt: number;
+  taxRate: number | null;
+  taxAmount: number;
+  totalTtc: number;
+  notes: string | null;
+  createdById: number | null;
+  createdByName: string | null;
+  createdAt: string;
+  issuedAt: string | null;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  items: InvoiceItemResponse[];
+}
+
+export interface SupplierInvoiceResponse {
+  id: number;
+  invoiceNumber: string;
+  supplierId: number;
+  supplierName: string;
+  purchaseOrderId: number | null;
+  purchaseOrderNumber: string | null;
+  status: SupplierInvoiceStatus;
+  subtotalHt: number;
+  taxRate: number | null;
+  taxAmount: number;
+  totalTtc: number;
+  notes: string | null;
+  createdById: number | null;
+  createdByName: string | null;
+  createdAt: string;
+  receivedAt: string | null;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  items: InvoiceItemResponse[];
+}
