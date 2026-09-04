@@ -1,0 +1,18 @@
+"use client";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AlertCircleIcon, Delete02Icon } from "@hugeicons/core-free-icons";
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useDeletePayment, usePayments } from "@/hooks/use-payments";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { formatCurrency, formatDateTime } from "@/lib/formatters";
+import { useAuth } from "@/providers/auth-provider";
+import type { PaymentType } from "@/types/models";
+
+const methodLabels: Record<string, string> = { CASH: "Espèces", BANK_TRANSFER: "Virement", CHECK: "Chèque", CREDIT_CARD: "Carte", OTHER: "Autre" };
+export function PaymentHistoryTable({ type }: { type: PaymentType }): React.ReactElement {
+  const [page, setPage] = useState(0); const [error, setError] = useState<string | null>(null); const { user } = useAuth(); const query = usePayments(page, 10, type); const remove = useDeletePayment(); const rows = query.data?.content ?? [];
+  const deleteRow = async (id: number) => { if (!window.confirm("Supprimer ce paiement ? La facture sera recalculée.")) return; setError(null); try { await remove.mutateAsync(id); } catch (reason) { setError(getApiErrorMessage(reason)); } };
+  return <div className="space-y-3">{error && <div className="rounded border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>}<div className="border rounded-lg bg-card overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="p-3 text-left">N° Paiement</th><th className="p-3 text-left">N° Facture</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Mode</th><th className="p-3 text-left">Référence</th><th className="p-3 text-left">Créé par</th><th className="p-3 text-right">Montant</th>{user?.role === "ADMIN" && <th className="p-3 text-right">Actions</th>}</tr></thead><tbody className="divide-y text-xs">{query.isLoading ? <tr><td colSpan={user?.role === "ADMIN" ? 8 : 7} className="p-8 text-center text-muted-foreground">Chargement des paiements...</td></tr> : query.isError ? <tr><td colSpan={user?.role === "ADMIN" ? 8 : 7} className="p-8 text-center text-destructive"><HugeiconsIcon icon={AlertCircleIcon} className="inline size-4" /> Impossible de récupérer les paiements.</td></tr> : rows.length === 0 ? <tr><td colSpan={user?.role === "ADMIN" ? 8 : 7} className="p-10 text-center text-muted-foreground">Aucun paiement enregistré.</td></tr> : rows.map((payment) => <tr key={payment.id}><td className="p-3 font-semibold text-primary">{payment.paymentNumber}</td><td className="p-3">{payment.customerInvoiceNumber ?? payment.supplierInvoiceNumber}</td><td className="p-3">{formatDateTime(payment.paymentDate)}</td><td className="p-3">{methodLabels[payment.paymentMethod]}</td><td className="p-3">{payment.referenceNumber ?? "—"}</td><td className="p-3">{payment.createdByName ?? "—"}</td><td className="p-3 text-right font-bold">{formatCurrency(payment.amount)}</td>{user?.role === "ADMIN" && <td className="p-3 text-right"><Button variant="ghost" size="sm" disabled={remove.isPending} onClick={() => deleteRow(payment.id)}><HugeiconsIcon icon={Delete02Icon} className="size-4" />Supprimer</Button></td>}</tr>)}</tbody></table></div>{(query.data?.totalPages ?? 0) > 1 && <div className="flex justify-between"><Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((current) => current - 1)}>Précédent</Button><Button size="sm" variant="outline" disabled={page >= (query.data?.totalPages ?? 1) - 1} onClick={() => setPage((current) => current + 1)}>Suivant</Button></div>}</div>;
+}

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { cancelCustomerInvoice, cancelSupplierInvoice, createCustomerInvoice, createSupplierInvoice, getCustomerInvoice, getCustomerInvoices, getSupplierInvoice, getSupplierInvoices, issueCustomerInvoice, payCustomerInvoice, paySupplierInvoice, receiveSupplierInvoice } from "@/services/invoices.service";
+import { cancelCustomerInvoice, cancelSupplierInvoice, createCustomerInvoice, createSupplierInvoice, getCustomerInvoice, getCustomerInvoices, getSupplierInvoice, getSupplierInvoices, issueCustomerInvoice, receiveSupplierInvoice } from "@/services/invoices.service";
 import type { CustomerInvoiceRequest, CustomerInvoiceStatus, SupplierInvoiceRequest, SupplierInvoiceStatus } from "@/types/models";
 
 export function useCustomerInvoices(page = 0, size = 10, status?: CustomerInvoiceStatus, clientId?: number, saleOrderId?: number) { return useQuery({ queryKey: ["customer-invoices", page, size, status, clientId, saleOrderId], queryFn: () => getCustomerInvoices(page, size, status, clientId, saleOrderId) }); }
@@ -10,8 +10,6 @@ function useInvoiceMutation<T>(mutationFn: (data: T) => Promise<unknown>) { cons
 export function useCreateCustomerInvoice() { return useInvoiceMutation((data: CustomerInvoiceRequest) => createCustomerInvoice(data)); }
 export function useCreateSupplierInvoice() { return useInvoiceMutation((data: SupplierInvoiceRequest) => createSupplierInvoice(data)); }
 export function useIssueCustomerInvoice() { return useInvoiceMutation(issueCustomerInvoice); }
-export function usePayCustomerInvoice() { return useInvoiceMutation(payCustomerInvoice); }
 export function useCancelCustomerInvoice() { return useInvoiceMutation(cancelCustomerInvoice); }
 export function useReceiveSupplierInvoice() { return useInvoiceMutation(receiveSupplierInvoice); }
-export function usePaySupplierInvoice() { return useInvoiceMutation(paySupplierInvoice); }
 export function useCancelSupplierInvoice() { return useInvoiceMutation(cancelSupplierInvoice); }

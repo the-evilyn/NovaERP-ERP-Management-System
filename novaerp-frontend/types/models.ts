@@ -538,3 +538,47 @@ export interface SupplierInvoiceResponse {
   cancelledAt: string | null;
   items: InvoiceItemResponse[];
 }
+
+// ---- Payments ----
+export type PaymentMethod = "CASH" | "BANK_TRANSFER" | "CHECK" | "CREDIT_CARD" | "OTHER";
+export type PaymentType = "CUSTOMER_PAYMENT" | "SUPPLIER_PAYMENT";
+
+export interface CustomerPaymentRequest {
+  amount: number;
+  paymentMethod: PaymentMethod;
+  paymentDate?: string;
+  referenceNumber?: string;
+  notes?: string;
+}
+
+export type SupplierPaymentRequest = CustomerPaymentRequest;
+
+export interface PaymentResponse {
+  id: number;
+  paymentNumber: string;
+  paymentType: PaymentType;
+  customerInvoiceId: number | null;
+  customerInvoiceNumber: string | null;
+  supplierInvoiceId: number | null;
+  supplierInvoiceNumber: string | null;
+  paymentMethod: PaymentMethod;
+  amount: number;
+  paymentDate: string;
+  referenceNumber: string | null;
+  notes: string | null;
+  createdById: number | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface InvoicePaymentSummaryResponse {
+  invoiceId: number;
+  invoiceNumber: string;
+  invoiceType: string;
+  invoiceStatus: string;
+  totalTtc: number;
+  totalPaid: number;
+  remainingAmount: number;
+  isFullyPaid: boolean;
+  payments: PaymentResponse[];
+}
