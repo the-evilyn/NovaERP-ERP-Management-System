@@ -42,7 +42,7 @@ public class StockMovementService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be positive for OUT movements");
         }
 
-        Article article = articleRepository.findById(request.articleId())
+        Article article = articleRepository.findByIdForUpdate(request.articleId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Article not found"));
 
         Warehouse warehouse = resolveWarehouse(request);

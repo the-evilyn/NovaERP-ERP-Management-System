@@ -101,7 +101,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("IN movement increases article stock quantity and warehouse stock")
     void testRecordInMovement_IncreasesStock() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         StockMovementRequest request = new StockMovementRequest(
@@ -126,7 +126,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("OUT movement decreases article stock quantity and warehouse stock")
     void testRecordOutMovement_DecreasesStock() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         StockMovementRequest request = new StockMovementRequest(
@@ -149,7 +149,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("OUT movement with insufficient stock throws BAD_REQUEST")
     void testRecordOutMovement_InsufficientStock_ThrowsBadRequest() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
 
         StockMovementRequest request = new StockMovementRequest(
                 1L, StockMovementType.OUT, new BigDecimal("150.0000"), "SO-999", "Too much"
@@ -169,7 +169,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("ADJUSTMENT with positive quantity increases both stocks")
     void testRecordAdjustment_PositiveQuantity_IncreasesStock() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         StockMovementRequest request = new StockMovementRequest(
@@ -186,7 +186,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("ADJUSTMENT with negative quantity decreases both stocks")
     void testRecordAdjustment_NegativeQuantity_DecreasesStock() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         StockMovementRequest request = new StockMovementRequest(
@@ -203,7 +203,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("ADJUSTMENT driving stock below zero throws BAD_REQUEST")
     void testRecordAdjustment_NegativeQuantityBelowZero_ThrowsBadRequest() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
 
         StockMovementRequest request = new StockMovementRequest(
                 1L, StockMovementType.ADJUSTMENT, new BigDecimal("-150.0000"), "ADJ-003", "Over correction"
@@ -252,7 +252,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("Article not found throws NOT_FOUND")
     void testRecordMovement_ArticleNotFound_ThrowsNotFound() {
-        when(articleRepository.findById(999L)).thenReturn(Optional.empty());
+        when(articleRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
 
         StockMovementRequest request = new StockMovementRequest(
                 999L, StockMovementType.IN, new BigDecimal("10"), "PO-1", "Missing"
@@ -346,7 +346,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("Default WH-MAIN and LOC-GEN fallback is applied when warehouse and location are omitted")
     void testRecordMovement_DefaultWarehouseAndLocationFallback() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         StockMovementRequest request = new StockMovementRequest(
@@ -368,7 +368,7 @@ class StockMovementServiceTest {
         WarehouseLocation loc2 = WarehouseLocation.builder().id(20L).warehouse(wh2).code("LOC-A1").name("Allée A1").active(true).build();
         WarehouseStock ws2 = WarehouseStock.builder().id(200L).article(sampleArticle).warehouse(wh2).location(loc2).quantity(new BigDecimal("30.0000")).build();
 
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh2));
         when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc2));
         when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(1L, 2L, 20L)).thenReturn(Optional.of(ws2));
@@ -397,7 +397,7 @@ class StockMovementServiceTest {
         // Location has only 10, but global sampleArticle has 100
         WarehouseStock ws2 = WarehouseStock.builder().id(200L).article(sampleArticle).warehouse(wh2).location(loc2).quantity(new BigDecimal("10.0000")).build();
 
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh2));
         when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc2));
         when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(1L, 2L, 20L)).thenReturn(Optional.of(ws2));
@@ -420,7 +420,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("Invalid warehouse ID throws NOT_FOUND")
     void testRecordMovement_InvalidWarehouse_ThrowsNotFound() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(999L)).thenReturn(Optional.empty());
 
         StockMovementRequest request = new StockMovementRequest(
@@ -440,7 +440,7 @@ class StockMovementServiceTest {
     @DisplayName("Inactive warehouse throws BAD_REQUEST")
     void testRecordMovement_InactiveWarehouse_ThrowsBadRequest() {
         Warehouse inactiveWh = Warehouse.builder().id(3L).code("WH-OLD").name("Ancien Entrepôt").active(false).build();
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(3L)).thenReturn(Optional.of(inactiveWh));
 
         StockMovementRequest request = new StockMovementRequest(
@@ -460,7 +460,7 @@ class StockMovementServiceTest {
     @DisplayName("Invalid location ID throws NOT_FOUND")
     void testRecordMovement_InvalidLocation_ThrowsNotFound() {
         Warehouse wh = Warehouse.builder().id(2L).code("WH-TNG").active(true).build();
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
         when(warehouseLocationRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -483,7 +483,7 @@ class StockMovementServiceTest {
         Warehouse wh = Warehouse.builder().id(2L).code("WH-TNG").active(true).build();
         WarehouseLocation inactiveLoc = WarehouseLocation.builder().id(20L).warehouse(wh).active(false).build();
 
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
         when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(inactiveLoc));
 
@@ -507,7 +507,7 @@ class StockMovementServiceTest {
         Warehouse otherWh = Warehouse.builder().id(2L).code("WH-OTHER").active(true).build();
         WarehouseLocation locOfOtherWh = WarehouseLocation.builder().id(20L).warehouse(otherWh).active(true).build();
 
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(1L)).thenReturn(Optional.of(wh1));
         when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(locOfOtherWh));
 
@@ -532,7 +532,7 @@ class StockMovementServiceTest {
         // Location has 10, global has 100
         WarehouseStock ws2 = WarehouseStock.builder().id(200L).article(sampleArticle).warehouse(wh2).location(loc2).quantity(new BigDecimal("10.0000")).build();
 
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh2));
         when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc2));
         when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(1L, 2L, 20L)).thenReturn(Optional.of(ws2));
@@ -553,7 +553,7 @@ class StockMovementServiceTest {
     @Test
     @DisplayName("Creates WarehouseStock with quantity 0 if none exists before applying movement")
     void testRecordMovement_CreatesWarehouseStockIfNoneExists() {
-        when(articleRepository.findById(1L)).thenReturn(Optional.of(sampleArticle));
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
         when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(1L, 1L, 1L)).thenReturn(Optional.empty());
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -570,5 +570,22 @@ class StockMovementServiceTest {
                 ws.getWarehouse().getId().equals(1L) &&
                 ws.getLocation().getId().equals(1L)
         ));
+    }
+
+    @Test
+    @DisplayName("StockMovementService uses findByIdForUpdate to lock article with PESSIMISTIC_WRITE before stock validation")
+    void testRecordMovement_UsesFindByIdForUpdate_LocksArticle() {
+        when(articleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(sampleArticle));
+        when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StockMovementRequest request = new StockMovementRequest(
+                1L, StockMovementType.IN, new BigDecimal("10.0000"), "PO-LOCK", "Lock verification"
+        );
+
+        StockMovement result = stockMovementService.record(request, testUser);
+
+        assertThat(result).isNotNull();
+        verify(articleRepository).findByIdForUpdate(1L);
+        verify(articleRepository, never()).findById(any());
     }
 }
