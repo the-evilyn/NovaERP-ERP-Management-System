@@ -6,10 +6,10 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
-    @EntityGraph(attributePaths = {"article", "createdBy"})
+    @EntityGraph(attributePaths = {"article", "createdBy", "warehouse", "location"})
     Page<StockMovement> findByArticleId(Long articleId, Pageable pageable);
 
     @Override
-    @EntityGraph(attributePaths = {"article", "createdBy"})
+    @EntityGraph(attributePaths = {"article", "createdBy", "warehouse", "location"})
     Page<StockMovement> findAll(Pageable pageable);
 }
