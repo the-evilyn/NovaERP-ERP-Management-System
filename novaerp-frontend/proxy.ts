@@ -7,9 +7,9 @@ const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password'
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasToken = Boolean(request.cookies.get(TOKEN_COOKIE_NAME)?.value);
-  const isAuthPage = AUTH_PAGES.some((page) => pathname.startsWith(page));
+  const isAuthPage = AUTH_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
 
-  if (!hasToken && pathname.startsWith('/dashboard')) {
+  if (!hasToken && !isAuthPage && pathname !== '/') {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -21,5 +21,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/register', '/forgot-password', '/reset-password'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
