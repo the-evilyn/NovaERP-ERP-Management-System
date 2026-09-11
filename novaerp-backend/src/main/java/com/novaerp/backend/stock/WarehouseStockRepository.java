@@ -28,6 +28,10 @@ public interface WarehouseStockRepository extends JpaRepository<WarehouseStock, 
     @EntityGraph(attributePaths = {"article"})
     Page<WarehouseStock> findByWarehouseIdAndLocationId(Long warehouseId, Long locationId, Pageable pageable);
 
+    long countByWarehouseIdAndQuantityGreaterThan(Long warehouseId, BigDecimal quantity);
+
+    long countByLocationIdAndQuantityGreaterThan(Long locationId, BigDecimal quantity);
+
     @Query("SELECT COALESCE(SUM(ws.quantity), 0) FROM WarehouseStock ws WHERE ws.article.id = :articleId")
     BigDecimal sumQuantityByArticleId(@Param("articleId") Long articleId);
 

@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -174,5 +176,107 @@ class WarehouseRepositoryTest {
         assertThatThrownBy(() -> {
             warehouseStockRepository.saveAndFlush(duplicate);
         }).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("existsByCodeAndIdNot correctly detects duplicate warehouse codes excluding self")
+    void testWarehouse_ExistsByCodeAndIdNot() {
+        Warehouse defaultWh = warehouseRepository.findByCode("WH-MAIN").orElseThrow();
+
+        // Self should return false
+        assertThat(warehouseRepository.existsByCodeAndIdNot("WH-MAIN", defaultWh.getId())).isFalse();
+
+        // Different ID should return true
+        assertThat(warehouseRepository.existsByCodeAndIdNot("WH-MAIN", 999999L)).isTrue();
+
+        // Non-existent code should return false
+        assertThat(warehouseRepository.existsByCodeAndIdNot("WH-NON-EXISTENT", defaultWh.getId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("existsByWarehouseIdAndCodeAndIdNot correctly detects duplicate location codes within warehouse excluding self")
+    void testLocation_ExistsByWarehouseIdAndCodeAndIdNot() {
+        Warehouse defaultWh = warehouseRepository.findByCode("WH-MAIN").orElseThrow();
+        WarehouseLocation defaultLoc = warehouseLocationRepository.findByWarehouseIdAndCode(defaultWh.getId(), "LOC-GEN").orElseThrow();
+
+        // Self in same warehouse returns false
+        assertThat(warehouseLocationRepository.existsByWarehouseIdAndCodeAndIdNot(defaultWh.getId(), "LOC-GEN", defaultLoc.getId())).isFalse();
+
+        // Different ID in same warehouse returns true
+        assertThat(warehouseLocationRepository.existsByWarehouseIdAndCodeAndIdNot(defaultWh.getId(), "LOC-GEN", 999999L)).isTrue();
+
+        // Different warehouse returns false
+        assertThat(warehouseLocationRepository.existsByWarehouseIdAndCodeAndIdNot(999999L, "LOC-GEN", defaultLoc.getId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("findByIdAndWarehouseId validates location ownership by warehouse")
+    void testLocation_FindByIdAndWarehouseId_Ownership() {
+        Warehouse defaultWh = warehouseRepository.findByCode("WH-MAIN").orElseThrow();
+        WarehouseLocation defaultLoc = warehouseLocationRepository.findByWarehouseIdAndCode(defaultWh.getId(), "LOC-GEN").orElseThrow();
+
+        // Matching warehouse returns location
+        Optional<WarehouseLocation> found = warehouseLocationRepository.findByIdAndWarehouseId(defaultLoc.getId(), defaultWh.getId());
+        assertThat(found).isPresent();
+        assertThat(found.get().getCode()).isEqualTo("LOC-GEN");
+
+        // Non-matching warehouse returns empty
+        Optional<WarehouseLocation> mismatch = warehouseLocationRepository.findByIdAndWarehouseId(defaultLoc.getId(), 999999L);
+        assertThat(mismatch).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findByWarehouseIdAndActive filters locations by active flag with pagination")
+    void testLocation_FindByWarehouseIdAndActive_Pagination() {
+        Warehouse defaultWh = warehouseRepository.findByCode("WH-MAIN").orElseThrow();
+
+        WarehouseLocation inactiveLoc = WarehouseLocation.builder()
+                .warehouse(defaultWh)
+                .code("LOC-INACTIVE-TEST")
+                .name("Zone Inactive Test")
+                .active(false)
+                .build();
+        warehouseLocationRepository.save(inactiveLoc);
+
+        Page<WarehouseLocation> activePage = warehouseLocationRepository.findByWarehouseIdAndActive(
+                defaultWh.getId(), true, PageRequest.of(0, 10));
+        assertThat(activePage.getContent()).extracting(WarehouseLocation::getCode).contains("LOC-GEN");
+        assertThat(activePage.getContent()).extracting(WarehouseLocation::getCode).doesNotContain("LOC-INACTIVE-TEST");
+
+        Page<WarehouseLocation> inactivePage = warehouseLocationRepository.findByWarehouseIdAndActive(
+                defaultWh.getId(), false, PageRequest.of(0, 10));
+        assertThat(inactivePage.getContent()).extracting(WarehouseLocation::getCode).contains("LOC-INACTIVE-TEST");
+        assertThat(inactivePage.getContent()).extracting(WarehouseLocation::getCode).doesNotContain("LOC-GEN");
+    }
+
+    @Test
+    @DisplayName("countByWarehouseIdAndQuantityGreaterThan and countByLocationIdAndQuantityGreaterThan detect positive stock rows")
+    void testStock_CountPositiveStockRows() {
+        Warehouse defaultWh = warehouseRepository.findByCode("WH-MAIN").orElseThrow();
+        WarehouseLocation defaultLoc = warehouseLocationRepository.findByWarehouseIdAndCode(defaultWh.getId(), "LOC-GEN").orElseThrow();
+
+        // Default warehouse and location contain seeded positive stock
+        long whPositiveStockCount = warehouseStockRepository.countByWarehouseIdAndQuantityGreaterThan(defaultWh.getId(), BigDecimal.ZERO);
+        assertThat(whPositiveStockCount).isGreaterThan(0L);
+
+        long locPositiveStockCount = warehouseStockRepository.countByLocationIdAndQuantityGreaterThan(defaultLoc.getId(), BigDecimal.ZERO);
+        assertThat(locPositiveStockCount).isGreaterThan(0L);
+
+        // Empty warehouse and location contain zero positive stock
+        Warehouse emptyWh = warehouseRepository.save(Warehouse.builder()
+                .code("WH-EMPTY-COUNT-TEST")
+                .name("Entrepôt Vide Test")
+                .active(true)
+                .build());
+
+        WarehouseLocation emptyLoc = warehouseLocationRepository.save(WarehouseLocation.builder()
+                .warehouse(emptyWh)
+                .code("LOC-EMPTY-COUNT-TEST")
+                .name("Zone Vide Test")
+                .active(true)
+                .build());
+
+        assertThat(warehouseStockRepository.countByWarehouseIdAndQuantityGreaterThan(emptyWh.getId(), BigDecimal.ZERO)).isEqualTo(0L);
+        assertThat(warehouseStockRepository.countByLocationIdAndQuantityGreaterThan(emptyLoc.getId(), BigDecimal.ZERO)).isEqualTo(0L);
     }
 }

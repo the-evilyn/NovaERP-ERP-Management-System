@@ -16,7 +16,13 @@ public interface WarehouseLocationRepository extends JpaRepository<WarehouseLoca
 
     boolean existsByWarehouseIdAndCode(Long warehouseId, String code);
 
+    boolean existsByWarehouseIdAndCodeAndIdNot(Long warehouseId, String code, Long id);
+
+    Optional<WarehouseLocation> findByIdAndWarehouseId(Long id, Long warehouseId);
+
     Optional<WarehouseLocation> findByWarehouseIdAndIsDefaultTrue(Long warehouseId);
 
     Page<WarehouseLocation> findByWarehouseId(Long warehouseId, Pageable pageable);
+
+    Page<WarehouseLocation> findByWarehouseIdAndActive(Long warehouseId, boolean active, Pageable pageable);
 }
