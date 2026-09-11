@@ -1,10 +1,10 @@
 # NovaERP Backend
 
-Fresh Spring Boot 4 / Java 21 backend for `novaerp-frontend`. Includes a minimal JWT auth module, PostgreSQL, MailHog for local email testing, and Swagger UI.
+Fresh Spring Boot 4 / Java 25 backend for `novaerp-frontend`. Includes a minimal JWT auth module, PostgreSQL, MailHog for local email testing, and Swagger UI.
 
 ## Stack
 
-- Spring Boot 4, Java 21, Maven
+- Spring Boot 4, Java 25, Maven
 - Spring Web, Spring Data JPA, PostgreSQL driver
 - Spring Security + JWT (jjwt)
 - Spring Mail (SMTP, points at MailHog locally)
