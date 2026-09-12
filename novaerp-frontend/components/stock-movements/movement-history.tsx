@@ -68,6 +68,7 @@ export function MovementHistory({
             <TableRow>
               <TableHead className="ps-4">Date</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Emplacement</TableHead>
               <TableHead className="text-right">Quantité</TableHead>
               <TableHead>Référence</TableHead>
               <TableHead>Note</TableHead>
@@ -78,7 +79,7 @@ export function MovementHistory({
             {isPending && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="h-24 px-4 text-center text-muted-foreground"
                 >
                   Chargement...
@@ -88,7 +89,7 @@ export function MovementHistory({
             {!isPending && (movements ?? []).length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="h-24 px-4 text-center text-muted-foreground"
                 >
                   Aucun mouvement enregistré pour cet article.
@@ -102,6 +103,23 @@ export function MovementHistory({
                 </TableCell>
                 <TableCell>
                   <TypeBadge type={movement.type} />
+                </TableCell>
+                <TableCell>
+                  {movement.warehouseCode || movement.locationCode ? (
+                    <div className="flex flex-col">
+                      <span className="font-mono text-xs font-medium">
+                        {movement.warehouseCode ?? "—"} /{" "}
+                        {movement.locationCode ?? "—"}
+                      </span>
+                      {movement.warehouseName && (
+                        <span className="max-w-40 truncate text-muted-foreground text-[11px]">
+                          {movement.warehouseName}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   {movement.type === "OUT" ? "-" : "+"}

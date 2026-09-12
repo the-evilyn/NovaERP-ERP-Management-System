@@ -277,6 +277,8 @@ export interface StockMovementRequest {
   quantity: number;
   reference: string;
   note: string;
+  warehouseId?: number | null;
+  locationId?: number | null;
 }
 
 export interface StockMovementResponse {
@@ -287,6 +289,12 @@ export interface StockMovementResponse {
   quantity: number;
   reference: string | null;
   note: string | null;
+  warehouseId: number | null;
+  warehouseCode: string | null;
+  warehouseName: string | null;
+  locationId: number | null;
+  locationCode: string | null;
+  locationName: string | null;
   createdById: number;
   createdByName: string;
   createdAt: string;
