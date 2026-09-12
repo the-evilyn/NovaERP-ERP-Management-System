@@ -18,6 +18,19 @@ public record StockMovementRequest(
 
         String reference,
 
-        String note
+        String note,
+
+        Long warehouseId,
+
+        Long locationId
 ) {
+    public StockMovementRequest(
+            Long articleId,
+            StockMovementType type,
+            BigDecimal quantity,
+            String reference,
+            String note
+    ) {
+        this(articleId, type, quantity, reference, note, null, null);
+    }
 }

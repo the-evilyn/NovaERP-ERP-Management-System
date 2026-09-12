@@ -1,11 +1,14 @@
 package com.novaerp.backend.stock;
 
 import com.novaerp.backend.stock.dto.CategoryStockValueDto;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,6 +28,10 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     @Override
     @EntityGraph(attributePaths = {"category", "unit"})
     Optional<Article> findById(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Article a WHERE a.id = :id")
+    Optional<Article> findByIdForUpdate(@Param("id") Long id);
 
     @Override
     @EntityGraph(attributePaths = {"category", "unit"})

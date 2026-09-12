@@ -19,6 +19,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useCustomerInvoices, useCreateCustomerInvoice } from "@/hooks/use-invoices";
 import { useAuth } from "@/providers/auth-provider";
 import { useCancelSaleOrder, useConfirmSaleOrder } from "@/hooks/use-sales";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -42,10 +43,15 @@ export function ViewSalesOrderDialog({
 
   const confirmMutation = useConfirmSaleOrder();
   const cancelMutation = useCancelSaleOrder();
+  const createInvoiceMutation = useCreateCustomerInvoice();
+  const customerInvoicesQuery = useCustomerInvoices(0, 20, undefined, undefined, order?.id);
 
   const isAdmin = user?.role === "ADMIN";
 
   if (!order) return <></>;
+
+  const existingCustomerInvoices = customerInvoicesQuery.data?.content ?? [];
+  const existingCustomerInvoiceCount = existingCustomerInvoices.length;
 
   const getStatusBadge = (status: SaleOrderStatus) => {
     switch (status) {
@@ -87,6 +93,29 @@ export function ViewSalesOrderDialog({
       setTimeout(() => onOpenChange(false), 1500);
     } catch (err) {
       setErrorMsg(getApiErrorMessage(err));
+    }
+  };
+
+  const handleCreateInvoice = async () => {
+    setErrorMsg(null);
+    setActionSuccess(null);
+    try {
+      await createInvoiceMutation.mutateAsync({
+        clientId: order.clientId,
+        saleOrderId: order.id,
+        items: order.items.map((item) => ({
+          articleId: item.articleId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxRate: item.taxRate,
+        })),
+        taxRate: order.taxRate,
+        notes: order.notes ?? undefined,
+      });
+      setActionSuccess("Facture client créée à partir de cette commande.");
+      setTimeout(() => onOpenChange(false), 1500);
+    } catch (err) {
+      setErrorMsg(getApiErrorMessage(err, "Impossible de créer la facture client."));
     }
   };
 
@@ -253,6 +282,20 @@ export function ViewSalesOrderDialog({
           </div>
 
           <div className="flex gap-2">
+            {isAdmin && order.status !== "CANCELLED" && order.items.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCreateInvoice}
+                disabled={createInvoiceMutation.isPending || customerInvoicesQuery.isLoading || existingCustomerInvoiceCount > 0}
+              >
+                {existingCustomerInvoiceCount > 0
+                  ? "Facture déjà créée"
+                  : createInvoiceMutation.isPending
+                    ? "Création..."
+                    : "Créer une facture client"}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"

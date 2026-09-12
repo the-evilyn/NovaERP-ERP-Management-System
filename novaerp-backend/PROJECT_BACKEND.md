@@ -1,10 +1,10 @@
 # NovaERP — Backend
 
-Spring Boot 4 / Java 21 REST API for NovaERP, a small business ERP (stock/inventory focused). Consumed by the `novaerp-frontend` Next.js app. Sibling repo lives at `../novaerp-frontend` (see `PROJECT_FRONTEND.md` there for the client side).
+Spring Boot 4 / Java 25 REST API for NovaERP, a small business ERP (stock/inventory focused). Consumed by the `novaerp-frontend` Next.js app. Sibling repo lives at `../novaerp-frontend` (see `PROJECT_FRONTEND.md` there for the client side).
 
 ## Stack
 
-- **Spring Boot 4**, **Java 21**, Maven (`./mvnw`)
+- **Spring Boot 4**, **Java 25**, Maven (`./mvnw`)
 - Spring Web (MVC), Spring Data JPA, **PostgreSQL**
 - Spring Security + **JWT** (`jjwt`), stateless sessions
 - Spring Mail (SMTP → **MailHog** locally, for password reset emails)

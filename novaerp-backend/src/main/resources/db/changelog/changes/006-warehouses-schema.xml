@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 1. WAREHOUSES TABLE -->
+    <changeSet id="006-create-table-warehouses" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="warehouses"/>
+            </not>
+        </preConditions>
+        <createTable tableName="warehouses">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="warehouses_pkey" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_warehouses_code"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="address" type="VARCHAR(255)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_default" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+    </changeSet>
+
+    <!-- 2. WAREHOUSE LOCATIONS TABLE -->
+    <changeSet id="006-create-table-warehouse-locations" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="warehouse_locations"/>
+            </not>
+        </preConditions>
+        <createTable tableName="warehouse_locations">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="warehouse_locations_pkey" nullable="false"/>
+            </column>
+            <column name="warehouse_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_wh_locations_warehouse" references="warehouses(id)"/>
+            </column>
+            <column name="code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_default" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint tableName="warehouse_locations" columnNames="warehouse_id, code" constraintName="uk_wh_locations_wh_code"/>
+    </changeSet>
+
+    <!-- 3. SEED DEFAULT WAREHOUSE AND LOCATION -->
+    <changeSet id="006-seed-default-warehouse-and-location" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM warehouses WHERE code = 'WH-MAIN'</sqlCheck>
+        </preConditions>
+        <sql>
+            INSERT INTO warehouses (code, name, description, address, active, is_default, created_at, updated_at)
+            VALUES ('WH-MAIN', 'Entrepôt Principal (Siège)', 'Site logistique central et stockage principal', 'Casablanca, Maroc', true, true, NOW(), NOW());
+
+            INSERT INTO warehouse_locations (warehouse_id, code, name, description, active, is_default, created_at, updated_at)
+            SELECT id, 'LOC-GEN', 'Zone Générale', 'Emplacement général de stockage par défaut', true, true, NOW(), NOW()
+            FROM warehouses WHERE code = 'WH-MAIN';
+        </sql>
+    </changeSet>
+
+    <!-- 4. WAREHOUSE STOCKS TABLE -->
+    <changeSet id="006-create-table-warehouse-stocks" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="warehouse_stocks"/>
+            </not>
+        </preConditions>
+        <createTable tableName="warehouse_stocks">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="warehouse_stocks_pkey" nullable="false"/>
+            </column>
+            <column name="article_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_wh_stocks_article" references="articles(id)"/>
+            </column>
+            <column name="warehouse_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_wh_stocks_warehouse" references="warehouses(id)"/>
+            </column>
+            <column name="location_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_wh_stocks_location" references="warehouse_locations(id)"/>
+            </column>
+            <column name="quantity" type="NUMERIC(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="min_quantity" type="NUMERIC(19,4)" defaultValueNumeric="0"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint tableName="warehouse_stocks" columnNames="article_id, warehouse_id, location_id" constraintName="uk_wh_stocks_article_wh_loc"/>
+    </changeSet>
+
+    <!-- 5. WAREHOUSE STOCKS INDEXES -->
+    <changeSet id="006-create-indexes-warehouse-stocks" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="warehouse_stocks"/>
+        </preConditions>
+        <createIndex indexName="idx_wh_stocks_article_id" tableName="warehouse_stocks">
+            <column name="article_id"/>
+        </createIndex>
+        <createIndex indexName="idx_wh_stocks_warehouse_id" tableName="warehouse_stocks">
+            <column name="warehouse_id"/>
+        </createIndex>
+        <createIndex indexName="idx_wh_stocks_location_id" tableName="warehouse_stocks">
+            <column name="location_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 6. MIGRATE EXISTING ARTICLE STOCKS INTO DEFAULT WAREHOUSE & LOCATION -->
+    <changeSet id="006-migrate-article-stocks-to-warehouse-stocks" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="warehouse_stocks"/>
+            <tableExists tableName="articles"/>
+            <sqlCheck expectedResult="1">SELECT COUNT(*) FROM warehouses WHERE code = 'WH-MAIN'</sqlCheck>
+        </preConditions>
+        <sql>
+            INSERT INTO warehouse_stocks (article_id, warehouse_id, location_id, quantity, min_quantity, created_at, updated_at)
+            SELECT 
+                a.id, 
+                w.id, 
+                l.id, 
+                COALESCE(a.stock_quantity, 0), 
+                COALESCE(a.min_stock_quantity, 0), 
+                NOW(), 
+                NOW()
+            FROM articles a
+            CROSS JOIN (SELECT id FROM warehouses WHERE code = 'WH-MAIN' LIMIT 1) w
+            CROSS JOIN (SELECT id FROM warehouse_locations WHERE code = 'LOC-GEN' AND warehouse_id = (SELECT id FROM warehouses WHERE code = 'WH-MAIN' LIMIT 1) LIMIT 1) l
+            ON CONFLICT (article_id, warehouse_id, location_id) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <!-- 7. ADD WAREHOUSE & LOCATION TO STOCK MOVEMENTS -->
+    <changeSet id="006-add-warehouse-to-stock-movements" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="stock_movements"/>
+            <not>
+                <columnExists tableName="stock_movements" columnName="warehouse_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="stock_movements">
+            <column name="warehouse_id" type="BIGINT">
+                <constraints foreignKeyName="fk_stock_movements_warehouse" references="warehouses(id)"/>
+            </column>
+            <column name="location_id" type="BIGINT">
+                <constraints foreignKeyName="fk_stock_movements_location" references="warehouse_locations(id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- 8. BACKFILL HISTORICAL STOCK MOVEMENTS WITH DEFAULT WAREHOUSE & LOCATION -->
+    <changeSet id="006-backfill-stock-movements-warehouse" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="stock_movements"/>
+            <columnExists tableName="stock_movements" columnName="warehouse_id"/>
+            <columnExists tableName="stock_movements" columnName="location_id"/>
+            <sqlCheck expectedResult="1">SELECT COUNT(*) FROM warehouses WHERE code = 'WH-MAIN'</sqlCheck>
+        </preConditions>
+        <sql>
+            UPDATE stock_movements
+            SET warehouse_id = (SELECT id FROM warehouses WHERE code = 'WH-MAIN' LIMIT 1),
+                location_id = (SELECT id FROM warehouse_locations WHERE code = 'LOC-GEN' AND warehouse_id = (SELECT id FROM warehouses WHERE code = 'WH-MAIN' LIMIT 1) LIMIT 1)
+            WHERE warehouse_id IS NULL;
+        </sql>
+    </changeSet>
+
+    <!-- 9. INDEXES ON STOCK MOVEMENTS FOR WAREHOUSE AND LOCATION -->
+    <changeSet id="006-create-indexes-stock-movements-warehouse" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="stock_movements"/>
+            <columnExists tableName="stock_movements" columnName="warehouse_id"/>
+        </preConditions>
+        <createIndex indexName="idx_stock_movements_warehouse_id" tableName="stock_movements">
+            <column name="warehouse_id"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_movements_location_id" tableName="stock_movements">
+            <column name="location_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
