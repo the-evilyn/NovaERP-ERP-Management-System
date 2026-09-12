@@ -292,6 +292,50 @@ export interface StockMovementResponse {
   createdAt: string;
 }
 
+// ---- Warehouses & Locations ----
+export interface WarehouseRequest {
+  code: string;
+  name: string;
+  description?: string | null;
+  address?: string | null;
+}
+
+export interface WarehouseResponse {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  address: string | null;
+  active: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WarehouseLocationRequest {
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface WarehouseLocationResponse {
+  id: number;
+  warehouseId: number;
+  warehouseCode: string;
+  warehouseName: string;
+  code: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActiveToggleRequest {
+  active: boolean;
+}
+
 // ---- Dashboard Stats ----
 export interface CategoryStockValue {
   categoryName: string;
