@@ -2,6 +2,7 @@
 
 import {
   AiBrain01Icon,
+  Building03Icon,
   DashboardSquare01Icon,
   Exchange02Icon,
   FileExportIcon,
@@ -39,6 +40,7 @@ const navMain: NavMainItem[] = [
   { title: "Factures", url: "/invoices", icon: Invoice01Icon },
   { title: "Paiements", url: "/payments", icon: Invoice01Icon },
   { title: "Unités", url: "/units", icon: Package02Icon },
+  { title: "Entrepôts", url: "/warehouses", icon: Building03Icon },
   {
     title: "Mouvements de stock",
     url: "/stock-movements",
