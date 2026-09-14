@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createLocation,
   createWarehouse,
+  getArticleWarehouseStocks,
   getLocation,
   getLocations,
   getWarehouse,
   getWarehouses,
+  getWarehouseStocks,
   setLocationActive,
   setWarehouseActive,
   updateLocation,
@@ -143,5 +145,47 @@ export function useToggleLocationActive(warehouseId: number) {
         queryKey: ["warehouses", warehouseId, "locations"],
       });
     },
+  });
+}
+
+export function useWarehouseStocks(
+  warehouseId: number | null,
+  page = 0,
+  size = 20,
+  locationId?: number | null,
+  positiveOnly?: boolean,
+) {
+  return useQuery({
+    queryKey: [
+      "warehouses",
+      warehouseId,
+      "stocks",
+      page,
+      size,
+      locationId ?? null,
+      positiveOnly ?? false,
+    ],
+    queryFn: () =>
+      getWarehouseStocks(warehouseId as number, {
+        page,
+        size,
+        locationId: locationId ?? undefined,
+        positiveOnly,
+      }),
+    enabled:
+      typeof warehouseId === "number" &&
+      Number.isFinite(warehouseId) &&
+      warehouseId > 0,
+  });
+}
+
+export function useArticleWarehouseStocks(articleId: number | null) {
+  return useQuery({
+    queryKey: ["warehouses", "stocks", "article", articleId],
+    queryFn: () => getArticleWarehouseStocks(articleId as number),
+    enabled:
+      typeof articleId === "number" &&
+      Number.isFinite(articleId) &&
+      articleId > 0,
   });
 }

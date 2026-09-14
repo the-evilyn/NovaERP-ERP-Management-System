@@ -39,11 +39,16 @@ class WarehouseServiceTest {
     @Mock
     private WarehouseStockRepository warehouseStockRepository;
 
+    @Mock
+    private ArticleRepository articleRepository;
+
     @InjectMocks
     private WarehouseService warehouseService;
 
     private Warehouse sampleWarehouse;
     private WarehouseLocation sampleLocation;
+    private Article sampleArticle;
+    private WarehouseStock sampleStock;
 
     @BeforeEach
     void setUp() {
@@ -67,6 +72,29 @@ class WarehouseServiceTest {
                 .description("Zone par défaut")
                 .active(true)
                 .isDefault(true)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+
+        Unit sampleUnit = Unit.builder().id(100L).name("Pièce").build();
+        Category sampleCategory = Category.builder().id(200L).name("Électronique").build();
+
+        sampleArticle = Article.builder()
+                .id(50L)
+                .reference("ART-001")
+                .designation("Moteur Électrique")
+                .purchasePriceHt(new BigDecimal("150.00"))
+                .unit(sampleUnit)
+                .category(sampleCategory)
+                .build();
+
+        sampleStock = WarehouseStock.builder()
+                .id(1000L)
+                .warehouse(sampleWarehouse)
+                .location(sampleLocation)
+                .article(sampleArticle)
+                .quantity(new BigDecimal("20.00"))
+                .minQuantity(new BigDecimal("5.00"))
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -576,5 +604,144 @@ class WarehouseServiceTest {
         assertThat(res.active()).isTrue();
         verify(warehouseLocationRepository).save(inactiveLoc);
         verify(warehouseStockRepository, never()).countByLocationIdAndQuantityGreaterThan(any(), any());
+    }
+
+    // ==========================================
+    // Warehouse Stock Visibility Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("listWarehouseStocks: successfully lists stock with pagination and response mapping")
+    void testListWarehouseStocks_Success_WithPaginationAndMapping() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<WarehouseStock> stockPage = new PageImpl<>(List.of(sampleStock), pageable, 1);
+
+        when(warehouseRepository.existsById(1L)).thenReturn(true);
+        when(warehouseStockRepository.findWarehouseStocks(1L, null, false, pageable)).thenReturn(stockPage);
+
+        Page<WarehouseStockResponse> result = warehouseService.listWarehouseStocks(1L, null, false, pageable);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent()).hasSize(1);
+
+        WarehouseStockResponse dto = result.getContent().get(0);
+        assertThat(dto.id()).isEqualTo(1000L);
+        assertThat(dto.warehouseId()).isEqualTo(1L);
+        assertThat(dto.warehouseCode()).isEqualTo("WH-MAIN");
+        assertThat(dto.warehouseName()).isEqualTo("Entrepôt Principal");
+        assertThat(dto.locationId()).isEqualTo(10L);
+        assertThat(dto.locationCode()).isEqualTo("LOC-GEN");
+        assertThat(dto.locationName()).isEqualTo("Zone Générale");
+        assertThat(dto.articleId()).isEqualTo(50L);
+        assertThat(dto.articleReference()).isEqualTo("ART-001");
+        assertThat(dto.articleDesignation()).isEqualTo("Moteur Électrique");
+        assertThat(dto.categoryName()).isEqualTo("Électronique");
+        assertThat(dto.unitName()).isEqualTo("Pièce");
+        assertThat(dto.quantity()).isEqualByComparingTo(new BigDecimal("20.00"));
+        assertThat(dto.minQuantity()).isEqualByComparingTo(new BigDecimal("5.00"));
+        assertThat(dto.purchasePriceHt()).isEqualByComparingTo(new BigDecimal("150.00"));
+        assertThat(dto.totalValueHt()).isEqualByComparingTo(new BigDecimal("3000.00"));
+    }
+
+    @Test
+    @DisplayName("listWarehouseStocks: throws 404 when warehouse does not exist")
+    void testListWarehouseStocks_WarehouseNotFound_Throws404() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(warehouseRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> warehouseService.listWarehouseStocks(99L, null, false, pageable))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+                    assertThat(rse.getReason()).contains("Warehouse not found");
+                });
+
+        verify(warehouseStockRepository, never()).findWarehouseStocks(any(), any(), anyBoolean(), any());
+    }
+
+    @Test
+    @DisplayName("listWarehouseStocks: filters by locationId when location belongs to warehouse")
+    void testListWarehouseStocks_ValidLocationFilter_Success() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<WarehouseStock> stockPage = new PageImpl<>(List.of(sampleStock), pageable, 1);
+
+        when(warehouseRepository.existsById(1L)).thenReturn(true);
+        when(warehouseLocationRepository.findByIdAndWarehouseId(10L, 1L)).thenReturn(Optional.of(sampleLocation));
+        when(warehouseStockRepository.findWarehouseStocks(1L, 10L, false, pageable)).thenReturn(stockPage);
+
+        Page<WarehouseStockResponse> result = warehouseService.listWarehouseStocks(1L, 10L, false, pageable);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(warehouseStockRepository).findWarehouseStocks(1L, 10L, false, pageable);
+    }
+
+    @Test
+    @DisplayName("listWarehouseStocks: throws 400 when location does not belong to specified warehouse")
+    void testListWarehouseStocks_LocationBelongsToAnotherWarehouse_Throws400() {
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(warehouseRepository.existsById(1L)).thenReturn(true);
+        when(warehouseLocationRepository.findByIdAndWarehouseId(999L, 1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> warehouseService.listWarehouseStocks(1L, 999L, false, pageable))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(rse.getReason()).isEqualTo("Location does not belong to specified warehouse");
+                });
+
+        verify(warehouseStockRepository, never()).findWarehouseStocks(any(), any(), anyBoolean(), any());
+    }
+
+    @Test
+    @DisplayName("listWarehouseStocks: forwards positiveOnly flag to repository")
+    void testListWarehouseStocks_PositiveOnlyForwarding_Success() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<WarehouseStock> stockPage = new PageImpl<>(List.of(sampleStock), pageable, 1);
+
+        when(warehouseRepository.existsById(1L)).thenReturn(true);
+        when(warehouseStockRepository.findWarehouseStocks(1L, null, true, pageable)).thenReturn(stockPage);
+
+        Page<WarehouseStockResponse> result = warehouseService.listWarehouseStocks(1L, null, true, pageable);
+
+        assertThat(result).isNotNull();
+        verify(warehouseStockRepository).findWarehouseStocks(1L, null, true, pageable);
+    }
+
+    @Test
+    @DisplayName("listArticleStocks: successfully lists stock for article across warehouses")
+    void testListArticleStocks_Success() {
+        when(articleRepository.existsById(50L)).thenReturn(true);
+        when(warehouseStockRepository.findByArticleId(50L)).thenReturn(List.of(sampleStock));
+
+        List<WarehouseStockResponse> result = warehouseService.listArticleStocks(50L);
+
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(1);
+        WarehouseStockResponse dto = result.get(0);
+        assertThat(dto.articleId()).isEqualTo(50L);
+        assertThat(dto.warehouseCode()).isEqualTo("WH-MAIN");
+        assertThat(dto.locationCode()).isEqualTo("LOC-GEN");
+        assertThat(dto.totalValueHt()).isEqualByComparingTo(new BigDecimal("3000.00"));
+    }
+
+    @Test
+    @DisplayName("listArticleStocks: throws 404 when article does not exist")
+    void testListArticleStocks_ArticleNotFound_Throws404() {
+        when(articleRepository.existsById(999L)).thenReturn(false);
+
+        assertThatThrownBy(() -> warehouseService.listArticleStocks(999L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+                    assertThat(rse.getReason()).contains("Article not found");
+                });
+
+        verify(warehouseStockRepository, never()).findByArticleId(any());
     }
 }

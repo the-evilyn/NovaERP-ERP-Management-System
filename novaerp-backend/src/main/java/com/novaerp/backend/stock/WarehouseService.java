@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +18,7 @@ public class WarehouseService {
     private final WarehouseRepository warehouseRepository;
     private final WarehouseLocationRepository warehouseLocationRepository;
     private final WarehouseStockRepository warehouseStockRepository;
+    private final ArticleRepository articleRepository;
 
     @Transactional(readOnly = true)
     public Page<WarehouseResponse> listWarehouses(Boolean active, Pageable pageable) {
@@ -190,5 +192,40 @@ public class WarehouseService {
         location.setActive(active);
         WarehouseLocation updated = warehouseLocationRepository.save(location);
         return WarehouseLocationResponse.from(updated);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WarehouseStockResponse> listWarehouseStocks(
+            Long warehouseId,
+            Long locationId,
+            boolean positiveOnly,
+            Pageable pageable
+    ) {
+        if (!warehouseRepository.existsById(warehouseId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Warehouse not found");
+        }
+
+        if (locationId != null && warehouseLocationRepository.findByIdAndWarehouseId(locationId, warehouseId).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Location does not belong to specified warehouse");
+        }
+
+        Page<WarehouseStock> page = warehouseStockRepository.findWarehouseStocks(
+                warehouseId,
+                locationId,
+                positiveOnly,
+                pageable
+        );
+
+        return page.map(WarehouseStockResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WarehouseStockResponse> listArticleStocks(Long articleId) {
+        if (!articleRepository.existsById(articleId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Article not found");
+        }
+
+        List<WarehouseStock> stocks = warehouseStockRepository.findByArticleId(articleId);
+        return stocks.stream().map(WarehouseStockResponse::from).toList();
     }
 }

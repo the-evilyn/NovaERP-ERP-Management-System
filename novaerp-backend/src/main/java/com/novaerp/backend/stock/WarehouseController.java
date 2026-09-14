@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/warehouses")
 @RequiredArgsConstructor
@@ -114,5 +116,26 @@ public class WarehouseController {
             @Valid @RequestBody ActiveToggleRequest request
     ) {
         return warehouseService.setActiveLocation(warehouseId, locationId, request.active());
+    }
+
+    // ==========================================
+    // Stock Visibility Endpoints
+    // ==========================================
+
+    @GetMapping("/{warehouseId}/stocks")
+    @Operation(summary = "List stock items in a warehouse with optional location/positive filtering and pagination")
+    public Page<WarehouseStockResponse> listWarehouseStocks(
+            @PathVariable Long warehouseId,
+            @RequestParam(required = false) Long locationId,
+            @RequestParam(defaultValue = "false") boolean positiveOnly,
+            @PageableDefault(size = 20, sort = "id") Pageable pageable
+    ) {
+        return warehouseService.listWarehouseStocks(warehouseId, locationId, positiveOnly, pageable);
+    }
+
+    @GetMapping("/stocks/articles/{articleId}")
+    @Operation(summary = "List stock for a specific article across all warehouses")
+    public List<WarehouseStockResponse> listArticleStocks(@PathVariable Long articleId) {
+        return warehouseService.listArticleStocks(articleId);
     }
 }

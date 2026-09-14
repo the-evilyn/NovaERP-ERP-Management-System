@@ -24,10 +24,12 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "@/components/ui/menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateLocationDialog } from "@/components/warehouses/create-location-dialog";
 import { CreateWarehouseDialog } from "@/components/warehouses/create-warehouse-dialog";
 import { EditWarehouseDialog } from "@/components/warehouses/edit-warehouse-dialog";
 import { WarehouseLocationsList } from "@/components/warehouses/warehouse-locations-list";
+import { WarehouseStockList } from "@/components/warehouses/warehouse-stock-list";
 import {
   useToggleWarehouseActive,
   useWarehouses,
@@ -38,6 +40,53 @@ import type { WarehouseResponse } from "@/types/models";
 
 export interface WarehouseTableProps {
   initialActiveFilter?: boolean;
+}
+
+interface WarehouseExpandedRowProps {
+  warehouse: WarehouseResponse;
+  isAdmin: boolean;
+}
+
+function WarehouseExpandedRow({
+  warehouse,
+  isAdmin,
+}: WarehouseExpandedRowProps): React.ReactElement {
+  const [activeTab, setActiveTab] = useState<"locations" | "stock">(
+    "locations",
+  );
+
+  return (
+    <div className="flex flex-col bg-muted/10">
+      <div className="bg-background/40 px-4 pt-2">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => {
+            if (val === "locations" || val === "stock") {
+              setActiveTab(val);
+            }
+          }}
+          className="w-full gap-0"
+        >
+          <TabsList variant="underline">
+            <TabsTrigger value="locations" className="text-xs sm:text-xs">
+              Emplacements
+            </TabsTrigger>
+            <TabsTrigger value="stock" className="text-xs sm:text-xs">
+              Stock
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      <div>
+        {activeTab === "locations" ? (
+          <WarehouseLocationsList warehouse={warehouse} isAdmin={isAdmin} />
+        ) : (
+          <WarehouseStockList warehouseId={warehouse.id} />
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function WarehouseTable({
@@ -205,7 +254,7 @@ export function WarehouseTable({
         onSearchChange={setSearch}
         expandable
         renderExpandedRow={(warehouse) => (
-          <WarehouseLocationsList warehouse={warehouse} isAdmin={isAdmin} />
+          <WarehouseExpandedRow warehouse={warehouse} isAdmin={isAdmin} />
         )}
         footer={
           data && data.totalElements > 0 ? (

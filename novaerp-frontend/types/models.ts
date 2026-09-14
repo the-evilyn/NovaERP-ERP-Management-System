@@ -340,6 +340,26 @@ export interface WarehouseLocationResponse {
   updatedAt: string;
 }
 
+export interface WarehouseStockResponse {
+  id: number;
+  warehouseId: number;
+  warehouseCode: string;
+  warehouseName: string;
+  locationId: number;
+  locationCode: string;
+  locationName: string;
+  articleId: number;
+  articleReference: string;
+  articleDesignation: string;
+  categoryName: string;
+  unitName: string;
+  quantity: number;
+  minQuantity: number | null;
+  purchasePriceHt: number | null;
+  totalValueHt: number | null;
+  updatedAt: string;
+}
+
 export interface ActiveToggleRequest {
   active: boolean;
 }

@@ -40,4 +40,22 @@ public interface WarehouseStockRepository extends JpaRepository<WarehouseStock, 
 
     @Query("SELECT COALESCE(SUM(ws.quantity), 0) FROM WarehouseStock ws")
     BigDecimal sumTotalStockQuantity();
+
+    @Query(
+            value = "SELECT ws FROM WarehouseStock ws " +
+                    "WHERE ws.warehouse.id = :warehouseId " +
+                    "AND (:locationId IS NULL OR ws.location.id = :locationId) " +
+                    "AND (:positiveOnly = false OR ws.quantity > 0)",
+            countQuery = "SELECT COUNT(ws) FROM WarehouseStock ws " +
+                    "WHERE ws.warehouse.id = :warehouseId " +
+                    "AND (:locationId IS NULL OR ws.location.id = :locationId) " +
+                    "AND (:positiveOnly = false OR ws.quantity > 0)"
+    )
+    @EntityGraph(attributePaths = {"article", "article.unit", "article.category", "location", "warehouse"})
+    Page<WarehouseStock> findWarehouseStocks(
+            @Param("warehouseId") Long warehouseId,
+            @Param("locationId") Long locationId,
+            @Param("positiveOnly") boolean positiveOnly,
+            Pageable pageable
+    );
 }
