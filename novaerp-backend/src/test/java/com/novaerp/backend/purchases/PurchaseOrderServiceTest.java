@@ -9,6 +9,8 @@ import com.novaerp.backend.stock.StockMovementService;
 import com.novaerp.backend.stock.StockMovementType;
 import com.novaerp.backend.stock.Supplier;
 import com.novaerp.backend.stock.SupplierRepository;
+import com.novaerp.backend.stock.Warehouse;
+import com.novaerp.backend.stock.WarehouseLocation;
 import com.novaerp.backend.stock.dto.StockMovementRequest;
 import com.novaerp.backend.user.Role;
 import com.novaerp.backend.user.User;
@@ -251,5 +253,64 @@ class PurchaseOrderServiceTest {
         assertThatThrownBy(() -> purchaseOrderService.cancel(100L, sampleUser))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("PurchaseOrderResponse.from maps null warehouse and location safely")
+    void testPurchaseOrderResponse_NullWarehouseAndLocation() {
+        PurchaseOrder order = PurchaseOrder.builder()
+                .id(100L)
+                .orderNumber("PO-2026-0001")
+                .supplier(sampleSupplier)
+                .status(PurchaseOrderStatus.DRAFT)
+                .items(new ArrayList<>())
+                .build();
+
+        PurchaseOrderResponse response = PurchaseOrderResponse.from(order);
+
+        assertThat(response.warehouseId()).isNull();
+        assertThat(response.warehouseCode()).isNull();
+        assertThat(response.warehouseName()).isNull();
+        assertThat(response.locationId()).isNull();
+        assertThat(response.locationCode()).isNull();
+        assertThat(response.locationName()).isNull();
+    }
+
+    @Test
+    @DisplayName("PurchaseOrderResponse.from correctly exposes warehouse and location when present")
+    void testPurchaseOrderResponse_WithWarehouseAndLocation() {
+        Warehouse wh = Warehouse.builder().id(3L).code("WH-SOUTH").name("Entrepôt Sud").build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(30L).code("LOC-B2").name("Zone B2").warehouse(wh).build();
+
+        PurchaseOrder order = PurchaseOrder.builder()
+                .id(100L)
+                .orderNumber("PO-2026-0001")
+                .supplier(sampleSupplier)
+                .status(PurchaseOrderStatus.DRAFT)
+                .warehouse(wh)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        PurchaseOrderResponse response = PurchaseOrderResponse.from(order);
+
+        assertThat(response.warehouseId()).isEqualTo(3L);
+        assertThat(response.warehouseCode()).isEqualTo("WH-SOUTH");
+        assertThat(response.warehouseName()).isEqualTo("Entrepôt Sud");
+        assertThat(response.locationId()).isEqualTo(30L);
+        assertThat(response.locationCode()).isEqualTo("LOC-B2");
+        assertThat(response.locationName()).isEqualTo("Zone B2");
+    }
+
+    @Test
+    @DisplayName("PurchaseOrderRequest supports nullable warehouseId and locationId")
+    void testPurchaseOrderRequest_WarehouseAndLocationFields() {
+        PurchaseOrderRequest requestWithNulls = new PurchaseOrderRequest(1L, List.of(), new BigDecimal("20.00"), "Notes");
+        assertThat(requestWithNulls.warehouseId()).isNull();
+        assertThat(requestWithNulls.locationId()).isNull();
+
+        PurchaseOrderRequest requestWithValues = new PurchaseOrderRequest(1L, List.of(), new BigDecimal("20.00"), "Notes", 7L, 70L);
+        assertThat(requestWithValues.warehouseId()).isEqualTo(7L);
+        assertThat(requestWithValues.locationId()).isEqualTo(70L);
     }
 }

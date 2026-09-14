@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 1. ADD WAREHOUSE & LOCATION TO SALE ORDERS -->
+    <changeSet id="007-add-warehouse-to-sale-orders" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sale_orders"/>
+            <not>
+                <columnExists tableName="sale_orders" columnName="warehouse_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="sale_orders">
+            <column name="warehouse_id" type="BIGINT">
+                <constraints foreignKeyName="fk_sale_orders_warehouse" references="warehouses(id)"/>
+            </column>
+            <column name="location_id" type="BIGINT">
+                <constraints foreignKeyName="fk_sale_orders_location" references="warehouse_locations(id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- 2. CREATE INDEXES ON SALE ORDERS FOR WAREHOUSE AND LOCATION -->
+    <changeSet id="007-create-indexes-sale-orders-warehouse" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sale_orders"/>
+            <columnExists tableName="sale_orders" columnName="warehouse_id"/>
+        </preConditions>
+        <createIndex indexName="idx_sale_orders_warehouse_id" tableName="sale_orders">
+            <column name="warehouse_id"/>
+        </createIndex>
+        <createIndex indexName="idx_sale_orders_location_id" tableName="sale_orders">
+            <column name="location_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 3. ADD WAREHOUSE & LOCATION TO PURCHASE ORDERS -->
+    <changeSet id="007-add-warehouse-to-purchase-orders" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="purchase_orders"/>
+            <not>
+                <columnExists tableName="purchase_orders" columnName="warehouse_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="purchase_orders">
+            <column name="warehouse_id" type="BIGINT">
+                <constraints foreignKeyName="fk_purchase_orders_warehouse" references="warehouses(id)"/>
+            </column>
+            <column name="location_id" type="BIGINT">
+                <constraints foreignKeyName="fk_purchase_orders_location" references="warehouse_locations(id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- 4. CREATE INDEXES ON PURCHASE ORDERS FOR WAREHOUSE AND LOCATION -->
+    <changeSet id="007-create-indexes-purchase-orders-warehouse" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="purchase_orders"/>
+            <columnExists tableName="purchase_orders" columnName="warehouse_id"/>
+        </preConditions>
+        <createIndex indexName="idx_purchase_orders_warehouse_id" tableName="purchase_orders">
+            <column name="warehouse_id"/>
+        </createIndex>
+        <createIndex indexName="idx_purchase_orders_location_id" tableName="purchase_orders">
+            <column name="location_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -11,5 +11,6 @@
     <include file="db/changelog/changes/004-invoices-schema.xml"/>
     <include file="db/changelog/changes/005-payments-schema.xml"/>
     <include file="db/changelog/changes/006-warehouses-schema.xml"/>
+    <include file="db/changelog/changes/007-orders-warehouse-schema.xml"/>
 
 </databaseChangeLog>

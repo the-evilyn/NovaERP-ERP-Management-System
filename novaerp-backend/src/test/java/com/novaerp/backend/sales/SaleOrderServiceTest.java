@@ -9,6 +9,8 @@ import com.novaerp.backend.stock.Article;
 import com.novaerp.backend.stock.ArticleRepository;
 import com.novaerp.backend.stock.StockMovementService;
 import com.novaerp.backend.stock.StockMovementType;
+import com.novaerp.backend.stock.Warehouse;
+import com.novaerp.backend.stock.WarehouseLocation;
 import com.novaerp.backend.stock.dto.StockMovementRequest;
 import com.novaerp.backend.user.Role;
 import com.novaerp.backend.user.User;
@@ -299,5 +301,64 @@ class SaleOrderServiceTest {
         assertThat(restock.type()).isEqualTo(StockMovementType.IN);
         assertThat(restock.quantity()).isEqualByComparingTo(new BigDecimal("15.0000"));
         assertThat(restock.reference()).contains("ANNUL-SO-2026-0001");
+    }
+
+    @Test
+    @DisplayName("SaleOrderResponse.from maps null warehouse and location safely")
+    void testSaleOrderResponse_NullWarehouseAndLocation() {
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .items(new ArrayList<>())
+                .build();
+
+        SaleOrderResponse response = SaleOrderResponse.from(order);
+
+        assertThat(response.warehouseId()).isNull();
+        assertThat(response.warehouseCode()).isNull();
+        assertThat(response.warehouseName()).isNull();
+        assertThat(response.locationId()).isNull();
+        assertThat(response.locationCode()).isNull();
+        assertThat(response.locationName()).isNull();
+    }
+
+    @Test
+    @DisplayName("SaleOrderResponse.from correctly exposes warehouse and location when present")
+    void testSaleOrderResponse_WithWarehouseAndLocation() {
+        Warehouse wh = Warehouse.builder().id(2L).code("WH-NORTH").name("Entrepôt Nord").build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(20L).code("LOC-A1").name("Allée A1").warehouse(wh).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        SaleOrderResponse response = SaleOrderResponse.from(order);
+
+        assertThat(response.warehouseId()).isEqualTo(2L);
+        assertThat(response.warehouseCode()).isEqualTo("WH-NORTH");
+        assertThat(response.warehouseName()).isEqualTo("Entrepôt Nord");
+        assertThat(response.locationId()).isEqualTo(20L);
+        assertThat(response.locationCode()).isEqualTo("LOC-A1");
+        assertThat(response.locationName()).isEqualTo("Allée A1");
+    }
+
+    @Test
+    @DisplayName("SaleOrderRequest supports nullable warehouseId and locationId")
+    void testSaleOrderRequest_WarehouseAndLocationFields() {
+        SaleOrderRequest requestWithNulls = new SaleOrderRequest(1L, List.of(), new BigDecimal("20.00"), "Notes");
+        assertThat(requestWithNulls.warehouseId()).isNull();
+        assertThat(requestWithNulls.locationId()).isNull();
+
+        SaleOrderRequest requestWithValues = new SaleOrderRequest(1L, List.of(), new BigDecimal("20.00"), "Notes", 5L, 50L);
+        assertThat(requestWithValues.warehouseId()).isEqualTo(5L);
+        assertThat(requestWithValues.locationId()).isEqualTo(50L);
     }
 }

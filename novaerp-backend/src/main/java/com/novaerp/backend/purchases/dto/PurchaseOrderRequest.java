@@ -17,6 +17,18 @@ public record PurchaseOrderRequest(
 
         BigDecimal taxRate,
 
-        String notes
+        String notes,
+
+        Long warehouseId,
+
+        Long locationId
 ) {
+    public PurchaseOrderRequest(
+            Long supplierId,
+            List<PurchaseOrderItemRequest> items,
+            BigDecimal taxRate,
+            String notes
+    ) {
+        this(supplierId, items, taxRate, notes, null, null);
+    }
 }

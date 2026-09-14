@@ -1,6 +1,8 @@
 package com.novaerp.backend.sales;
 
 import com.novaerp.backend.client.Client;
+import com.novaerp.backend.stock.Warehouse;
+import com.novaerp.backend.stock.WarehouseLocation;
 import com.novaerp.backend.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -57,6 +59,14 @@ public class SaleOrder {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_id")
+    private WarehouseLocation location;
 
     @OneToMany(mappedBy = "saleOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
