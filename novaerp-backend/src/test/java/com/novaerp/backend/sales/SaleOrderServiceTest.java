@@ -7,10 +7,7 @@ import com.novaerp.backend.sales.dto.SaleOrderRequest;
 import com.novaerp.backend.sales.dto.SaleOrderResponse;
 import com.novaerp.backend.stock.Article;
 import com.novaerp.backend.stock.ArticleRepository;
-import com.novaerp.backend.stock.StockMovementService;
-import com.novaerp.backend.stock.StockMovementType;
-import com.novaerp.backend.stock.Warehouse;
-import com.novaerp.backend.stock.WarehouseLocation;
+import com.novaerp.backend.stock.*;
 import com.novaerp.backend.stock.dto.StockMovementRequest;
 import com.novaerp.backend.user.Role;
 import com.novaerp.backend.user.User;
@@ -50,6 +47,15 @@ class SaleOrderServiceTest {
 
     @Mock
     private StockMovementService stockMovementService;
+
+    @Mock
+    private WarehouseRepository warehouseRepository;
+
+    @Mock
+    private WarehouseLocationRepository warehouseLocationRepository;
+
+    @Mock
+    private WarehouseStockRepository warehouseStockRepository;
 
     @InjectMocks
     private SaleOrderService saleOrderService;
@@ -360,5 +366,417 @@ class SaleOrderServiceTest {
         SaleOrderRequest requestWithValues = new SaleOrderRequest(1L, List.of(), new BigDecimal("20.00"), "Notes", 5L, 50L);
         assertThat(requestWithValues.warehouseId()).isEqualTo(5L);
         assertThat(requestWithValues.locationId()).isEqualTo(50L);
+    }
+
+    @Test
+    @DisplayName("Confirm order with valid warehouse and location passes and records movements with warehouseId and locationId")
+    void testConfirmSaleOrder_WithValidWarehouseAndLocation() {
+        Warehouse wh = Warehouse.builder().id(2L).name("Entrepôt Nord").active(true).build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(20L).name("Allée A1").warehouse(wh).active(true).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        SaleOrderItem item = SaleOrderItem.builder()
+                .id(1L)
+                .saleOrder(order)
+                .article(sampleArticle)
+                .quantity(new BigDecimal("10.0000"))
+                .unitPrice(new BigDecimal("50.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("500.0000"))
+                .totalTtc(new BigDecimal("600.0000"))
+                .build();
+        order.addItem(item);
+
+        WarehouseStock ws = WarehouseStock.builder()
+                .id(1L)
+                .article(sampleArticle)
+                .warehouse(wh)
+                .location(loc)
+                .quantity(new BigDecimal("30.0000"))
+                .build();
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
+        when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc));
+        when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(10L, 2L, 20L))
+                .thenReturn(Optional.of(ws));
+        when(saleOrderRepository.save(any(SaleOrder.class))).thenReturn(order);
+
+        SaleOrderResponse response = saleOrderService.confirm(100L, sampleUser);
+
+        assertThat(response.status()).isEqualTo(SaleOrderStatus.CONFIRMED);
+        assertThat(response.warehouseId()).isEqualTo(2L);
+        assertThat(response.locationId()).isEqualTo(20L);
+
+        ArgumentCaptor<StockMovementRequest> captor = ArgumentCaptor.forClass(StockMovementRequest.class);
+        verify(stockMovementService).record(captor.capture(), eq(sampleUser));
+
+        StockMovementRequest movement = captor.getValue();
+        assertThat(movement.articleId()).isEqualTo(10L);
+        assertThat(movement.type()).isEqualTo(StockMovementType.OUT);
+        assertThat(movement.quantity()).isEqualByComparingTo(new BigDecimal("10.0000"));
+        assertThat(movement.warehouseId()).isEqualTo(2L);
+        assertThat(movement.locationId()).isEqualTo(20L);
+    }
+
+    @Test
+    @DisplayName("Confirm order with warehouse but null location resolves default active location")
+    void testConfirmSaleOrder_ResolvesDefaultLocationWhenNull() {
+        Warehouse wh = Warehouse.builder().id(2L).name("Entrepôt Nord").active(true).build();
+        WarehouseLocation defaultLoc = WarehouseLocation.builder().id(25L).code("LOC-GEN").name("Général").warehouse(wh).active(true).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh)
+                .location(null)
+                .items(new ArrayList<>())
+                .build();
+
+        SaleOrderItem item = SaleOrderItem.builder()
+                .id(1L)
+                .saleOrder(order)
+                .article(sampleArticle)
+                .quantity(new BigDecimal("5.0000"))
+                .unitPrice(new BigDecimal("50.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("250.0000"))
+                .totalTtc(new BigDecimal("300.0000"))
+                .build();
+        order.addItem(item);
+
+        WarehouseStock ws = WarehouseStock.builder()
+                .id(1L)
+                .article(sampleArticle)
+                .warehouse(wh)
+                .location(defaultLoc)
+                .quantity(new BigDecimal("15.0000"))
+                .build();
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
+        when(warehouseLocationRepository.findByWarehouseIdAndCode(2L, "LOC-GEN")).thenReturn(Optional.of(defaultLoc));
+        when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(10L, 2L, 25L))
+                .thenReturn(Optional.of(ws));
+        when(saleOrderRepository.save(any(SaleOrder.class))).thenReturn(order);
+
+        SaleOrderResponse response = saleOrderService.confirm(100L, sampleUser);
+
+        assertThat(response.status()).isEqualTo(SaleOrderStatus.CONFIRMED);
+        assertThat(order.getLocation()).isEqualTo(defaultLoc);
+
+        ArgumentCaptor<StockMovementRequest> captor = ArgumentCaptor.forClass(StockMovementRequest.class);
+        verify(stockMovementService).record(captor.capture(), eq(sampleUser));
+
+        StockMovementRequest movement = captor.getValue();
+        assertThat(movement.warehouseId()).isEqualTo(2L);
+        assertThat(movement.locationId()).isEqualTo(25L);
+    }
+
+    @Test
+    @DisplayName("Confirm order with inactive warehouse throws 400 BAD_REQUEST")
+    void testConfirmSaleOrder_RejectsInactiveWarehouse() {
+        Warehouse wh = Warehouse.builder().id(2L).name("Entrepôt Inactif").active(false).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh)
+                .items(new ArrayList<>())
+                .build();
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
+
+        assertThatThrownBy(() -> saleOrderService.confirm(100L, sampleUser))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(rse.getReason()).contains("est inactif");
+                });
+
+        verify(stockMovementService, never()).record(any(), any());
+    }
+
+    @Test
+    @DisplayName("Confirm order with inactive location throws 400 BAD_REQUEST")
+    void testConfirmSaleOrder_RejectsInactiveLocation() {
+        Warehouse wh = Warehouse.builder().id(2L).name("Entrepôt Nord").active(true).build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(20L).name("Zone Inactive").warehouse(wh).active(false).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
+        when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc));
+
+        assertThatThrownBy(() -> saleOrderService.confirm(100L, sampleUser))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(rse.getReason()).contains("est inactif");
+                });
+
+        verify(stockMovementService, never()).record(any(), any());
+    }
+
+    @Test
+    @DisplayName("Confirm order with location belonging to another warehouse throws 400 BAD_REQUEST")
+    void testConfirmSaleOrder_RejectsLocationBelongingToAnotherWarehouse() {
+        Warehouse wh1 = Warehouse.builder().id(2L).name("Entrepôt 1").active(true).build();
+        Warehouse wh2 = Warehouse.builder().id(3L).name("Entrepôt 2").active(true).build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(20L).name("Zone A").warehouse(wh2).active(true).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh1)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh1));
+        when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc));
+
+        assertThatThrownBy(() -> saleOrderService.confirm(100L, sampleUser))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(rse.getReason()).contains("n'appartient pas");
+                });
+
+        verify(stockMovementService, never()).record(any(), any());
+    }
+
+    @Test
+    @DisplayName("Confirm order succeeds when WarehouseStock is sufficient even if Article global stock is lower")
+    void testConfirmSaleOrder_SucceedsWhenWarehouseStockSufficientEvenIfGlobalStockLower() {
+        // Article global stock = 20
+        sampleArticle.setStockQuantity(new BigDecimal("20.0000"));
+
+        Warehouse wh = Warehouse.builder().id(2L).name("Entrepôt Nord").active(true).build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(20L).name("Allée A1").warehouse(wh).active(true).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        // Order quantity = 25
+        SaleOrderItem item = SaleOrderItem.builder()
+                .id(1L)
+                .saleOrder(order)
+                .article(sampleArticle)
+                .quantity(new BigDecimal("25.0000"))
+                .unitPrice(new BigDecimal("50.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("1250.0000"))
+                .totalTtc(new BigDecimal("1500.0000"))
+                .build();
+        order.addItem(item);
+
+        // Selected WarehouseStock = 30
+        WarehouseStock ws = WarehouseStock.builder()
+                .id(1L)
+                .article(sampleArticle)
+                .warehouse(wh)
+                .location(loc)
+                .quantity(new BigDecimal("30.0000"))
+                .build();
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
+        when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc));
+        when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(10L, 2L, 20L))
+                .thenReturn(Optional.of(ws));
+        when(saleOrderRepository.save(any(SaleOrder.class))).thenReturn(order);
+
+        SaleOrderResponse response = saleOrderService.confirm(100L, sampleUser);
+
+        assertThat(response.status()).isEqualTo(SaleOrderStatus.CONFIRMED);
+        assertThat(response.warehouseId()).isEqualTo(2L);
+        assertThat(response.locationId()).isEqualTo(20L);
+
+        ArgumentCaptor<StockMovementRequest> captor = ArgumentCaptor.forClass(StockMovementRequest.class);
+        verify(stockMovementService).record(captor.capture(), eq(sampleUser));
+
+        StockMovementRequest movement = captor.getValue();
+        assertThat(movement.articleId()).isEqualTo(10L);
+        assertThat(movement.type()).isEqualTo(StockMovementType.OUT);
+        assertThat(movement.quantity()).isEqualByComparingTo(new BigDecimal("25.0000"));
+        assertThat(movement.warehouseId()).isEqualTo(2L);
+        assertThat(movement.locationId()).isEqualTo(20L);
+    }
+
+    @Test
+    @DisplayName("Confirm order with insufficient WarehouseStock throws 400 BAD_REQUEST")
+    void testConfirmSaleOrder_RejectsInsufficientWarehouseStock() {
+        Warehouse wh = Warehouse.builder().id(2L).name("Entrepôt Nord").active(true).build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(20L).name("Zone A").warehouse(wh).active(true).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .warehouse(wh)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        // Order = 30
+        SaleOrderItem item = SaleOrderItem.builder()
+                .id(1L)
+                .saleOrder(order)
+                .article(sampleArticle)
+                .quantity(new BigDecimal("30.0000"))
+                .unitPrice(new BigDecimal("50.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("1500.0000"))
+                .totalTtc(new BigDecimal("1800.0000"))
+                .build();
+        order.addItem(item);
+
+        // WarehouseStock = 20
+        WarehouseStock ws = WarehouseStock.builder()
+                .id(1L)
+                .article(sampleArticle)
+                .warehouse(wh)
+                .location(loc)
+                .quantity(new BigDecimal("20.0000"))
+                .build();
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(warehouseRepository.findById(2L)).thenReturn(Optional.of(wh));
+        when(warehouseLocationRepository.findById(20L)).thenReturn(Optional.of(loc));
+        when(warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(10L, 2L, 20L))
+                .thenReturn(Optional.of(ws));
+
+        assertThatThrownBy(() -> saleOrderService.confirm(100L, sampleUser))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(rse.getReason()).contains("Stock insuffisant");
+                });
+
+        verify(stockMovementService, never()).record(any(), any());
+    }
+
+    @Test
+    @DisplayName("Cancel CONFIRMED order with warehouse and location restocks to the exact same warehouse and location")
+    void testCancelConfirmedOrder_WithWarehouseAndLocation_RestocksToSameLocation() {
+        Warehouse wh = Warehouse.builder().id(3L).name("Entrepôt Sud").build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(30L).name("Zone B2").warehouse(wh).build();
+
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.CONFIRMED)
+                .warehouse(wh)
+                .location(loc)
+                .items(new ArrayList<>())
+                .build();
+
+        SaleOrderItem item = SaleOrderItem.builder()
+                .id(1L)
+                .saleOrder(order)
+                .article(sampleArticle)
+                .quantity(new BigDecimal("15.0000"))
+                .unitPrice(new BigDecimal("50.0000"))
+                .totalHt(new BigDecimal("750.0000"))
+                .totalTtc(new BigDecimal("900.0000"))
+                .build();
+        order.addItem(item);
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(saleOrderRepository.save(any(SaleOrder.class))).thenReturn(order);
+
+        SaleOrderResponse response = saleOrderService.cancel(100L, sampleUser);
+
+        assertThat(response.status()).isEqualTo(SaleOrderStatus.CANCELLED);
+
+        ArgumentCaptor<StockMovementRequest> captor = ArgumentCaptor.forClass(StockMovementRequest.class);
+        verify(stockMovementService).record(captor.capture(), eq(sampleUser));
+
+        StockMovementRequest restock = captor.getValue();
+        assertThat(restock.type()).isEqualTo(StockMovementType.IN);
+        assertThat(restock.quantity()).isEqualByComparingTo(new BigDecimal("15.0000"));
+        assertThat(restock.reference()).contains("ANNUL-SO-2026-0001");
+        assertThat(restock.warehouseId()).isEqualTo(3L);
+        assertThat(restock.locationId()).isEqualTo(30L);
+    }
+
+    @Test
+    @DisplayName("Cancel CONFIRMED legacy order with null warehouse/location preserves fallback behavior")
+    void testCancelConfirmedOrder_LegacyOrder_PreservesFallback() {
+        SaleOrder order = SaleOrder.builder()
+                .id(100L)
+                .orderNumber("SO-2026-0001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.CONFIRMED)
+                .warehouse(null)
+                .location(null)
+                .items(new ArrayList<>())
+                .build();
+
+        SaleOrderItem item = SaleOrderItem.builder()
+                .id(1L)
+                .saleOrder(order)
+                .article(sampleArticle)
+                .quantity(new BigDecimal("15.0000"))
+                .unitPrice(new BigDecimal("50.0000"))
+                .totalHt(new BigDecimal("750.0000"))
+                .totalTtc(new BigDecimal("900.0000"))
+                .build();
+        order.addItem(item);
+
+        when(saleOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(saleOrderRepository.save(any(SaleOrder.class))).thenReturn(order);
+
+        SaleOrderResponse response = saleOrderService.cancel(100L, sampleUser);
+
+        assertThat(response.status()).isEqualTo(SaleOrderStatus.CANCELLED);
+
+        ArgumentCaptor<StockMovementRequest> captor = ArgumentCaptor.forClass(StockMovementRequest.class);
+        verify(stockMovementService).record(captor.capture(), eq(sampleUser));
+
+        StockMovementRequest restock = captor.getValue();
+        assertThat(restock.type()).isEqualTo(StockMovementType.IN);
+        assertThat(restock.warehouseId()).isNull();
+        assertThat(restock.locationId()).isNull();
     }
 }

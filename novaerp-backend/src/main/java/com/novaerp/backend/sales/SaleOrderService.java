@@ -3,10 +3,7 @@ package com.novaerp.backend.sales;
 import com.novaerp.backend.client.Client;
 import com.novaerp.backend.client.ClientRepository;
 import com.novaerp.backend.sales.dto.*;
-import com.novaerp.backend.stock.Article;
-import com.novaerp.backend.stock.ArticleRepository;
-import com.novaerp.backend.stock.StockMovementService;
-import com.novaerp.backend.stock.StockMovementType;
+import com.novaerp.backend.stock.*;
 import com.novaerp.backend.stock.dto.StockMovementRequest;
 import com.novaerp.backend.user.User;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +31,9 @@ public class SaleOrderService {
     private final ClientRepository clientRepository;
     private final ArticleRepository articleRepository;
     private final StockMovementService stockMovementService;
+    private final WarehouseRepository warehouseRepository;
+    private final WarehouseLocationRepository warehouseLocationRepository;
+    private final WarehouseStockRepository warehouseStockRepository;
 
     private static final BigDecimal DEFAULT_TAX_RATE = new BigDecimal("20.00");
 
@@ -62,6 +62,22 @@ public class SaleOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La commande doit contenir au moins un article");
         }
 
+        Warehouse warehouse = null;
+        WarehouseLocation location = null;
+        if (request.warehouseId() != null) {
+            warehouse = warehouseRepository.findById(request.warehouseId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entrepôt introuvable: ID " + request.warehouseId()));
+            if (request.locationId() != null) {
+                location = warehouseLocationRepository.findById(request.locationId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Emplacement introuvable: ID " + request.locationId()));
+                if (location.getWarehouse() == null || !location.getWarehouse().getId().equals(warehouse.getId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'emplacement n'appartient pas à l'entrepôt sélectionné");
+                }
+            }
+        } else if (request.locationId() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Un entrepôt doit être spécifié si un emplacement est fourni");
+        }
+
         String orderNumber = generateOrderNumber();
 
         SaleOrder order = SaleOrder.builder()
@@ -70,6 +86,8 @@ public class SaleOrderService {
                 .status(SaleOrderStatus.DRAFT)
                 .taxRate(request.taxRate() != null ? request.taxRate() : DEFAULT_TAX_RATE)
                 .notes(request.notes())
+                .warehouse(warehouse)
+                .location(location)
                 .createdBy(user)
                 .createdAt(Instant.now())
                 .items(new ArrayList<>())
@@ -99,8 +117,26 @@ public class SaleOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La commande doit contenir au moins un article");
         }
 
+        Warehouse warehouse = null;
+        WarehouseLocation location = null;
+        if (request.warehouseId() != null) {
+            warehouse = warehouseRepository.findById(request.warehouseId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entrepôt introuvable: ID " + request.warehouseId()));
+            if (request.locationId() != null) {
+                location = warehouseLocationRepository.findById(request.locationId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Emplacement introuvable: ID " + request.locationId()));
+                if (location.getWarehouse() == null || !location.getWarehouse().getId().equals(warehouse.getId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'emplacement n'appartient pas à l'entrepôt sélectionné");
+                }
+            }
+        } else if (request.locationId() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Un entrepôt doit être spécifié si un emplacement est fourni");
+        }
+
         order.setClient(client);
         order.setNotes(request.notes());
+        order.setWarehouse(warehouse);
+        order.setLocation(location);
         if (request.taxRate() != null) {
             order.setTaxRate(request.taxRate());
         }
@@ -122,29 +158,101 @@ public class SaleOrderService {
                     "Seule une commande en statut brouillon (DRAFT) peut être confirmée");
         }
 
-        // 1. Validate sufficient stock for all lines BEFORE recording movements
-        for (SaleOrderItem item : order.getItems()) {
-            Article article = item.getArticle();
-            BigDecimal available = article.getStockQuantity();
-            BigDecimal requested = item.getQuantity();
+        if (order.getWarehouse() == null) {
+            // Legacy / backward-compatible flow
+            // 1. Validate sufficient stock for all lines BEFORE recording movements
+            for (SaleOrderItem item : order.getItems()) {
+                Article article = item.getArticle();
+                BigDecimal available = article.getStockQuantity();
+                BigDecimal requested = item.getQuantity();
 
-            if (available.compareTo(requested) < 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        String.format("Stock insuffisant pour l'article '%s' (Réf: %s). Demandé: %s, Disponible: %s",
-                                article.getDesignation(), article.getReference(), requested, available));
+                if (available.compareTo(requested) < 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            String.format("Stock insuffisant pour l'article '%s' (Réf: %s). Demandé: %s, Disponible: %s",
+                                    article.getDesignation(), article.getReference(), requested, available));
+                }
             }
-        }
 
-        // 2. Transactionally record OUT movements via StockMovementService
-        for (SaleOrderItem item : order.getItems()) {
-            StockMovementRequest movementRequest = new StockMovementRequest(
-                    item.getArticle().getId(),
-                    StockMovementType.OUT,
-                    item.getQuantity(),
-                    order.getOrderNumber(),
-                    "Vente commande " + order.getOrderNumber() + " - Client: " + order.getClient().getName()
-            );
-            stockMovementService.record(movementRequest, user);
+            // 2. Transactionally record OUT movements via StockMovementService
+            for (SaleOrderItem item : order.getItems()) {
+                StockMovementRequest movementRequest = new StockMovementRequest(
+                        item.getArticle().getId(),
+                        StockMovementType.OUT,
+                        item.getQuantity(),
+                        order.getOrderNumber(),
+                        "Vente commande " + order.getOrderNumber() + " - Client: " + order.getClient().getName()
+                );
+                stockMovementService.record(movementRequest, user);
+            }
+        } else {
+            // Warehouse-aware fulfillment flow
+            Warehouse warehouse = warehouseRepository.findById(order.getWarehouse().getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "Entrepôt introuvable: ID " + order.getWarehouse().getId()));
+
+            if (!warehouse.isActive()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "L'entrepôt '" + warehouse.getName() + "' est inactif");
+            }
+
+            WarehouseLocation location;
+            if (order.getLocation() != null) {
+                location = warehouseLocationRepository.findById(order.getLocation().getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Emplacement introuvable: ID " + order.getLocation().getId()));
+
+                if (!location.isActive()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "L'emplacement '" + location.getName() + "' est inactif");
+                }
+
+                if (location.getWarehouse() == null || !location.getWarehouse().getId().equals(warehouse.getId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "L'emplacement n'appartient pas à l'entrepôt sélectionné");
+                }
+            } else {
+                location = warehouseLocationRepository.findByWarehouseIdAndCode(warehouse.getId(), "LOC-GEN")
+                        .or(() -> warehouseLocationRepository.findByWarehouseIdAndIsDefaultTrue(warehouse.getId()))
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Aucun emplacement par défaut trouvé pour l'entrepôt '" + warehouse.getName() + "'"));
+
+                if (!location.isActive()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "L'emplacement par défaut de l'entrepôt '" + warehouse.getName() + "' est inactif");
+                }
+                order.setLocation(location);
+            }
+
+            // Validate stock availability against WarehouseStock for EACH order line
+            for (SaleOrderItem item : order.getItems()) {
+                Article article = item.getArticle();
+                BigDecimal requested = item.getQuantity();
+
+                BigDecimal wsQty = warehouseStockRepository
+                        .findByArticleIdAndWarehouseIdAndLocationId(article.getId(), warehouse.getId(), location.getId())
+                        .map(WarehouseStock::getQuantity)
+                        .orElse(BigDecimal.ZERO);
+
+                if (wsQty.compareTo(requested) < 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            String.format("Stock insuffisant dans l'entrepôt/emplacement pour l'article '%s' (Réf: %s). Demandé: %s, Disponible: %s",
+                                    article.getDesignation(), article.getReference(), requested, wsQty));
+                }
+            }
+
+            // Transactionally record OUT movements with explicit warehouseId and locationId
+            for (SaleOrderItem item : order.getItems()) {
+                StockMovementRequest movementRequest = new StockMovementRequest(
+                        item.getArticle().getId(),
+                        StockMovementType.OUT,
+                        item.getQuantity(),
+                        order.getOrderNumber(),
+                        "Vente commande " + order.getOrderNumber() + " - Client: " + order.getClient().getName(),
+                        warehouse.getId(),
+                        location.getId()
+                );
+                stockMovementService.record(movementRequest, user);
+            }
         }
 
         order.setStatus(SaleOrderStatus.CONFIRMED);
@@ -168,13 +276,18 @@ public class SaleOrderService {
 
         // If previously CONFIRMED, restock articles by recording IN stock movements
         if (order.getStatus() == SaleOrderStatus.CONFIRMED) {
+            Long warehouseId = order.getWarehouse() != null ? order.getWarehouse().getId() : null;
+            Long locationId = order.getLocation() != null ? order.getLocation().getId() : null;
+
             for (SaleOrderItem item : order.getItems()) {
                 StockMovementRequest movementRequest = new StockMovementRequest(
                         item.getArticle().getId(),
                         StockMovementType.IN,
                         item.getQuantity(),
                         "ANNUL-" + order.getOrderNumber(),
-                        "Annulation commande " + order.getOrderNumber() + " - Réintégration stock"
+                        "Annulation commande " + order.getOrderNumber() + " - Réintégration stock",
+                        warehouseId,
+                        locationId
                 );
                 stockMovementService.record(movementRequest, user);
             }
