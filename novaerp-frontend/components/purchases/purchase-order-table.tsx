@@ -144,6 +144,7 @@ export function PurchaseOrderTable(): React.ReactElement {
               <tr>
                 <th scope="col" className="px-4 py-3">N° Commande</th>
                 <th scope="col" className="px-4 py-3">Fournisseur</th>
+                <th scope="col" className="px-4 py-3">Entrepôt / Emplacement</th>
                 <th scope="col" className="px-4 py-3">Date</th>
                 <th scope="col" className="px-4 py-3">Articles</th>
                 <th scope="col" className="px-4 py-3 text-right">Total HT</th>
@@ -155,13 +156,13 @@ export function PurchaseOrderTable(): React.ReactElement {
             <tbody className="divide-y">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={9} className="text-center py-8 text-muted-foreground">
                     Chargement des commandes d&apos;achat...
                   </td>
                 </tr>
               ) : isError ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-destructive">
+                  <td colSpan={9} className="text-center py-8 text-destructive">
                     <div className="flex items-center justify-center gap-2">
                       <HugeiconsIcon icon={AlertCircleIcon} className="size-4" />
                       <span>Erreur lors du chargement des commandes d&apos;achat.</span>
@@ -170,7 +171,7 @@ export function PurchaseOrderTable(): React.ReactElement {
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-muted-foreground">
+                  <td colSpan={9} className="text-center py-10 text-muted-foreground">
                     Aucune commande d&apos;achat trouvée.
                   </td>
                 </tr>
@@ -186,6 +187,22 @@ export function PurchaseOrderTable(): React.ReactElement {
                     </td>
                     <td className="px-4 py-3 font-medium">
                       {order.supplierName}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {order.warehouseCode ? (
+                        <div className="space-y-0.5 min-w-[120px]">
+                          <div className="font-medium text-foreground">
+                            {order.warehouseCode}{order.warehouseName ? ` — ${order.warehouseName}` : ""}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {order.locationCode
+                              ? `${order.locationCode}${order.locationName ? ` — ${order.locationName}` : ""}`
+                              : "—"}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {formatDate(order.createdAt)}
