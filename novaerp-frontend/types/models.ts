@@ -440,6 +440,8 @@ export interface SaleOrderRequest {
   items: SaleOrderItemRequest[];
   taxRate?: number;
   notes?: string;
+  warehouseId?: number | null;
+  locationId?: number | null;
 }
 
 export interface SaleOrderItemResponse {
@@ -472,6 +474,12 @@ export interface SaleOrderResponse {
   createdAt: string;
   confirmedAt: string | null;
   deliveredAt: string | null;
+  warehouseId?: number | null;
+  warehouseCode?: string | null;
+  warehouseName?: string | null;
+  locationId?: number | null;
+  locationCode?: string | null;
+  locationName?: string | null;
   items: SaleOrderItemResponse[];
 }
 
@@ -490,6 +498,8 @@ export interface PurchaseOrderRequest {
   items: PurchaseOrderItemRequest[];
   taxRate?: number;
   notes?: string;
+  warehouseId?: number | null;
+  locationId?: number | null;
 }
 
 export interface PurchaseOrderItemResponse {
@@ -521,6 +531,12 @@ export interface PurchaseOrderResponse {
   createdAt: string;
   confirmedAt: string | null;
   receivedAt: string | null;
+  warehouseId?: number | null;
+  warehouseCode?: string | null;
+  warehouseName?: string | null;
+  locationId?: number | null;
+  locationCode?: string | null;
+  locationName?: string | null;
   items: PurchaseOrderItemResponse[];
 }
 
