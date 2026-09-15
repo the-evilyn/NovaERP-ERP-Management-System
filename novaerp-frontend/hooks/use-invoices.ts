@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { cancelCustomerInvoice, cancelSupplierInvoice, createCustomerInvoice, createSupplierInvoice, getCustomerInvoice, getCustomerInvoices, getSupplierInvoice, getSupplierInvoices, issueCustomerInvoice, receiveSupplierInvoice } from "@/services/invoices.service";
+import { cancelCustomerInvoice, cancelSupplierInvoice, createCustomerInvoice, createCustomerInvoiceFromSaleOrder, createSupplierInvoice, createSupplierInvoiceFromPurchaseOrder, getCustomerInvoice, getCustomerInvoices, getSupplierInvoice, getSupplierInvoices, issueCustomerInvoice, receiveSupplierInvoice } from "@/services/invoices.service";
 import type { CustomerInvoiceRequest, CustomerInvoiceStatus, SupplierInvoiceRequest, SupplierInvoiceStatus } from "@/types/models";
 
 export function useCustomerInvoices(page = 0, size = 10, status?: CustomerInvoiceStatus, clientId?: number, saleOrderId?: number) { return useQuery({ queryKey: ["customer-invoices", page, size, status, clientId, saleOrderId], queryFn: () => getCustomerInvoices(page, size, status, clientId, saleOrderId) }); }
@@ -8,7 +8,9 @@ export function useCustomerInvoice(id?: number) { return useQuery({ queryKey: ["
 export function useSupplierInvoice(id?: number) { return useQuery({ queryKey: ["supplier-invoices", id], queryFn: () => getSupplierInvoice(id as number), enabled: typeof id === "number" && Number.isFinite(id) }); }
 function useInvoiceMutation<T>(mutationFn: (data: T) => Promise<unknown>) { const client = useQueryClient(); return useMutation({ mutationFn, onSuccess: () => { client.invalidateQueries({ queryKey: ["customer-invoices"] }); client.invalidateQueries({ queryKey: ["supplier-invoices"] }); } }); }
 export function useCreateCustomerInvoice() { return useInvoiceMutation((data: CustomerInvoiceRequest) => createCustomerInvoice(data)); }
+export function useCreateCustomerInvoiceFromSaleOrder() { return useInvoiceMutation(createCustomerInvoiceFromSaleOrder); }
 export function useCreateSupplierInvoice() { return useInvoiceMutation((data: SupplierInvoiceRequest) => createSupplierInvoice(data)); }
+export function useCreateSupplierInvoiceFromPurchaseOrder() { return useInvoiceMutation(createSupplierInvoiceFromPurchaseOrder); }
 export function useIssueCustomerInvoice() { return useInvoiceMutation(issueCustomerInvoice); }
 export function useCancelCustomerInvoice() { return useInvoiceMutation(cancelCustomerInvoice); }
 export function useReceiveSupplierInvoice() { return useInvoiceMutation(receiveSupplierInvoice); }

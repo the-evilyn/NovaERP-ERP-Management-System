@@ -20,7 +20,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSupplierInvoices, useCreateSupplierInvoice } from "@/hooks/use-invoices";
+import { useSupplierInvoices, useCreateSupplierInvoiceFromPurchaseOrder } from "@/hooks/use-invoices";
 import { useAuth } from "@/providers/auth-provider";
 import { useCancelPurchaseOrder, useConfirmPurchaseOrder, useReceivePurchaseOrder } from "@/hooks/use-purchases";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -45,7 +45,7 @@ export function ViewPurchaseOrderDialog({
   const confirmMutation = useConfirmPurchaseOrder();
   const receiveMutation = useReceivePurchaseOrder();
   const cancelMutation = useCancelPurchaseOrder();
-  const createInvoiceMutation = useCreateSupplierInvoice();
+  const createInvoiceMutation = useCreateSupplierInvoiceFromPurchaseOrder();
   const supplierInvoicesQuery = useSupplierInvoices(0, 20, undefined, undefined, order?.id);
 
   const isAdmin = user?.role === "ADMIN";
@@ -107,18 +107,7 @@ export function ViewPurchaseOrderDialog({
     setErrorMsg(null);
     setActionSuccess(null);
     try {
-      await createInvoiceMutation.mutateAsync({
-        supplierId: order.supplierId,
-        purchaseOrderId: order.id,
-        items: order.items.map((item) => ({
-          articleId: item.articleId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          taxRate: item.taxRate,
-        })),
-        taxRate: order.taxRate,
-        notes: order.notes ?? undefined,
-      });
+      await createInvoiceMutation.mutateAsync(order.id);
       setActionSuccess("Facture fournisseur créée à partir de cette commande.");
       setTimeout(() => onOpenChange(false), 1500);
     } catch (err) {

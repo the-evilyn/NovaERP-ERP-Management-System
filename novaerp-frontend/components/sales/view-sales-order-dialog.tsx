@@ -19,7 +19,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCustomerInvoices, useCreateCustomerInvoice } from "@/hooks/use-invoices";
+import { useCustomerInvoices, useCreateCustomerInvoiceFromSaleOrder } from "@/hooks/use-invoices";
 import { useAuth } from "@/providers/auth-provider";
 import { useCancelSaleOrder, useConfirmSaleOrder } from "@/hooks/use-sales";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -43,7 +43,7 @@ export function ViewSalesOrderDialog({
 
   const confirmMutation = useConfirmSaleOrder();
   const cancelMutation = useCancelSaleOrder();
-  const createInvoiceMutation = useCreateCustomerInvoice();
+  const createInvoiceMutation = useCreateCustomerInvoiceFromSaleOrder();
   const customerInvoicesQuery = useCustomerInvoices(0, 20, undefined, undefined, order?.id);
 
   const isAdmin = user?.role === "ADMIN";
@@ -100,18 +100,7 @@ export function ViewSalesOrderDialog({
     setErrorMsg(null);
     setActionSuccess(null);
     try {
-      await createInvoiceMutation.mutateAsync({
-        clientId: order.clientId,
-        saleOrderId: order.id,
-        items: order.items.map((item) => ({
-          articleId: item.articleId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          taxRate: item.taxRate,
-        })),
-        taxRate: order.taxRate,
-        notes: order.notes ?? undefined,
-      });
+      await createInvoiceMutation.mutateAsync(order.id);
       setActionSuccess("Facture client créée à partir de cette commande.");
       setTimeout(() => onOpenChange(false), 1500);
     } catch (err) {
