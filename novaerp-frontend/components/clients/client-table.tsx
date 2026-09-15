@@ -36,6 +36,7 @@ import { CreateClientDialog } from "@/components/clients/create-client-dialog";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 import { parseCsv } from "@/lib/csv";
 import { useClients, useCreateClients, useDeleteClients } from "@/hooks/use-clients";
+import { useAuth } from "@/providers/auth-provider";
 import type { Client } from "@/types/models";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-MA", {
@@ -87,6 +88,9 @@ function ClientExpandedRow({ client }: { client: Client }): React.ReactElement {
 }
 
 export function ClientTable(): React.ReactElement {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -203,7 +207,7 @@ export function ClientTable(): React.ReactElement {
         emptyMessage={isPending ? "Chargement..." : "Aucun client trouvé."}
         searchValue={search}
         onSearchChange={setSearch}
-        selectable
+        selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         expandable
@@ -217,62 +221,68 @@ export function ClientTable(): React.ReactElement {
           ) : undefined
         }
         customHeader={
-          <>
-            {selectedIds.length > 0 && (
+          isAdmin ? (
+            <>
+              {selectedIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                  Supprimer ({selectedIds.length})
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleImportCsv}
+              />
               <Button
-                variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
+                variant="outline"
+                loading={createClients.isPending}
+                onClick={() => fileInputRef.current?.click()}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer ({selectedIds.length})
+                <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
+                Importer CSV
               </Button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={handleImportCsv}
-            />
-            <Button
-              variant="outline"
-              loading={createClients.isPending}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
-              Importer CSV
-            </Button>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-              Nouveau client
-            </Button>
-          </>
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                Nouveau client
+              </Button>
+            </>
+          ) : undefined
         }
-        actions={(client) => (
-          <Menu>
-            <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-              <span className="sr-only">Ouvrir le menu</span>
-              <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
-            </MenuTrigger>
-            <MenuPopup align="end">
-              <MenuItem onClick={() => setEditingClient(client)}>
-                <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
-                Modifier
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedIds([client.id]);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer
-              </MenuItem>
-            </MenuPopup>
-          </Menu>
-        )}
+        actions={
+          isAdmin
+            ? (client) => (
+                <Menu>
+                  <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                    <span className="sr-only">Ouvrir le menu</span>
+                    <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
+                  </MenuTrigger>
+                  <MenuPopup align="end">
+                    <MenuItem onClick={() => setEditingClient(client)}>
+                      <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+                      Modifier
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        setSelectedIds([client.id]);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                      Supprimer
+                    </MenuItem>
+                  </MenuPopup>
+                </Menu>
+              )
+            : undefined
+        }
       />
 
       {data && data.totalElements > 0 && (

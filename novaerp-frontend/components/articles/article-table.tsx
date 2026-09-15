@@ -40,9 +40,13 @@ import { EditArticleDialog } from "@/components/articles/edit-article-dialog";
 import { useArticles, useDeleteArticle } from "@/hooks/use-articles";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency } from "@/lib/formatters";
+import { useAuth } from "@/providers/auth-provider";
 import type { ArticleResponse } from "@/types/models";
 
 export function ArticleTable(): React.ReactElement {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -170,7 +174,7 @@ export function ArticleTable(): React.ReactElement {
         emptyMessage={isPending ? "Chargement..." : "Aucun article trouvé."}
         searchValue={search}
         onSearchChange={setSearch}
-        selectable
+        selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         expandable
@@ -186,47 +190,53 @@ export function ArticleTable(): React.ReactElement {
           ) : undefined
         }
         customHeader={
-          <>
-            {selectedIds.length > 0 && (
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer ({selectedIds.length})
+          isAdmin ? (
+            <>
+              {selectedIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                  Supprimer ({selectedIds.length})
+                </Button>
+              )}
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                Nouvel article
               </Button>
-            )}
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-              Nouvel article
-            </Button>
-          </>
+            </>
+          ) : undefined
         }
-        actions={(article) => (
-          <Menu>
-            <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-              <span className="sr-only">Ouvrir le menu</span>
-              <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
-            </MenuTrigger>
-            <MenuPopup align="end">
-              <MenuItem onClick={() => setEditingArticle(article)}>
-                <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
-                Modifier
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedIds([article.id]);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer
-              </MenuItem>
-            </MenuPopup>
-          </Menu>
-        )}
+        actions={
+          isAdmin
+            ? (article) => (
+                <Menu>
+                  <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                    <span className="sr-only">Ouvrir le menu</span>
+                    <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
+                  </MenuTrigger>
+                  <MenuPopup align="end">
+                    <MenuItem onClick={() => setEditingArticle(article)}>
+                      <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+                      Modifier
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        setSelectedIds([article.id]);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                      Supprimer
+                    </MenuItem>
+                  </MenuPopup>
+                </Menu>
+              )
+            : undefined
+        }
       />
 
       {data && data.totalElements > 0 && (

@@ -36,6 +36,7 @@ import { CreateSupplierDialog } from "@/components/suppliers/create-supplier-dia
 import { EditSupplierDialog } from "@/components/suppliers/edit-supplier-dialog";
 import { useDeleteSupplier, useSuppliers } from "@/hooks/use-suppliers";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { useAuth } from "@/providers/auth-provider";
 import type { SupplierResponse } from "@/types/models";
 
 function initials(name: string): string {
@@ -48,6 +49,9 @@ function initials(name: string): string {
 }
 
 export function SupplierTable(): React.ReactElement {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -133,7 +137,7 @@ export function SupplierTable(): React.ReactElement {
         }
         searchValue={search}
         onSearchChange={setSearch}
-        selectable
+        selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         footer={
@@ -145,47 +149,53 @@ export function SupplierTable(): React.ReactElement {
           ) : undefined
         }
         customHeader={
-          <>
-            {selectedIds.length > 0 && (
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer ({selectedIds.length})
+          isAdmin ? (
+            <>
+              {selectedIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                  Supprimer ({selectedIds.length})
+                </Button>
+              )}
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                Nouveau fournisseur
               </Button>
-            )}
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-              Nouveau fournisseur
-            </Button>
-          </>
+            </>
+          ) : undefined
         }
-        actions={(supplier) => (
-          <Menu>
-            <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-              <span className="sr-only">Ouvrir le menu</span>
-              <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
-            </MenuTrigger>
-            <MenuPopup align="end">
-              <MenuItem onClick={() => setEditingSupplier(supplier)}>
-                <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
-                Modifier
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedIds([supplier.id]);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer
-              </MenuItem>
-            </MenuPopup>
-          </Menu>
-        )}
+        actions={
+          isAdmin
+            ? (supplier) => (
+                <Menu>
+                  <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                    <span className="sr-only">Ouvrir le menu</span>
+                    <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
+                  </MenuTrigger>
+                  <MenuPopup align="end">
+                    <MenuItem onClick={() => setEditingSupplier(supplier)}>
+                      <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+                      Modifier
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        setSelectedIds([supplier.id]);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                      Supprimer
+                    </MenuItem>
+                  </MenuPopup>
+                </Menu>
+              )
+            : undefined
+        }
       />
 
       {data && data.totalElements > 0 && (

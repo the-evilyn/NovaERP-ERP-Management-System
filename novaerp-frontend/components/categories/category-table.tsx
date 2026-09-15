@@ -35,6 +35,7 @@ import { CreateCategoryDialog } from "@/components/categories/create-category-di
 import { EditCategoryDialog } from "@/components/categories/edit-category-dialog";
 import { useCategories, useDeleteCategory } from "@/hooks/use-categories";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { useAuth } from "@/providers/auth-provider";
 import type { CategoryResponse } from "@/types/models";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-MA", {
@@ -44,6 +45,9 @@ const dateFormatter = new Intl.DateTimeFormat("fr-MA", {
 });
 
 export function CategoryTable(): React.ReactElement {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -110,7 +114,7 @@ export function CategoryTable(): React.ReactElement {
         emptyMessage={isPending ? "Chargement..." : "Aucune catégorie trouvée."}
         searchValue={search}
         onSearchChange={setSearch}
-        selectable
+        selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         footer={
@@ -122,47 +126,53 @@ export function CategoryTable(): React.ReactElement {
           ) : undefined
         }
         customHeader={
-          <>
-            {selectedIds.length > 0 && (
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer ({selectedIds.length})
+          isAdmin ? (
+            <>
+              {selectedIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                  Supprimer ({selectedIds.length})
+                </Button>
+              )}
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                Nouvelle catégorie
               </Button>
-            )}
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-              Nouvelle catégorie
-            </Button>
-          </>
+            </>
+          ) : undefined
         }
-        actions={(category) => (
-          <Menu>
-            <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-              <span className="sr-only">Ouvrir le menu</span>
-              <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
-            </MenuTrigger>
-            <MenuPopup align="end">
-              <MenuItem onClick={() => setEditingCategory(category)}>
-                <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
-                Modifier
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedIds([category.id]);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer
-              </MenuItem>
-            </MenuPopup>
-          </Menu>
-        )}
+        actions={
+          isAdmin
+            ? (category) => (
+                <Menu>
+                  <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                    <span className="sr-only">Ouvrir le menu</span>
+                    <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
+                  </MenuTrigger>
+                  <MenuPopup align="end">
+                    <MenuItem onClick={() => setEditingCategory(category)}>
+                      <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+                      Modifier
+                    </MenuItem>
+                    <MenuSeparator />
+                    <MenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        setSelectedIds([category.id]);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                      Supprimer
+                    </MenuItem>
+                  </MenuPopup>
+                </Menu>
+              )
+            : undefined
+        }
       />
 
       {data && data.totalElements > 0 && (

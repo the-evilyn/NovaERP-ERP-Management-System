@@ -39,6 +39,7 @@ import {
 } from "@/hooks/use-stock-transfers";
 import { useWarehouses } from "@/hooks/use-warehouses";
 import { formatDateTime } from "@/lib/formatters";
+import { useAuth } from "@/providers/auth-provider";
 import type {
   StockTransferResponse,
   StockTransferStatus,
@@ -46,6 +47,8 @@ import type {
 
 export function StockTransferTable(): React.ReactElement {
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -175,10 +178,12 @@ export function StockTransferTable(): React.ReactElement {
             </select>
           </div>
 
-          <Button size="sm" className="h-8 text-xs gap-1.5" render={<Link href="/stock/transfers/new" />}>
-            <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-            Nouveau transfert
-          </Button>
+          {isAdmin && (
+            <Button size="sm" className="h-8 text-xs gap-1.5" render={<Link href="/stock/transfers/new" />}>
+              <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+              Nouveau transfert
+            </Button>
+          )}
         </div>
       </div>
 
@@ -293,7 +298,7 @@ export function StockTransferTable(): React.ReactElement {
                           <HugeiconsIcon icon={EyeIcon} className="size-3.5" />
                         </Button>
 
-                        {isDraft && (
+                        {isAdmin && isDraft && (
                           <>
                             <Button
                               variant="ghost"

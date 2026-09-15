@@ -63,6 +63,14 @@ export function AppSidebar(
   props: React.ComponentProps<typeof Sidebar>,
 ): React.ReactElement {
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
+  const visibleNavItems = navMain.filter((item) => {
+    if (item.url === "/import-export") {
+      return isAdmin;
+    }
+    return true;
+  });
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -84,7 +92,7 @@ export function AppSidebar(
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        <NavMain items={visibleNavItems} />
       </SidebarContent>
       <SidebarFooter>
         {user && (
