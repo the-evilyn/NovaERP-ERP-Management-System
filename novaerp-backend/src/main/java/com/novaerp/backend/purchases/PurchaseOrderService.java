@@ -1,12 +1,7 @@
 package com.novaerp.backend.purchases;
 
 import com.novaerp.backend.purchases.dto.*;
-import com.novaerp.backend.stock.Article;
-import com.novaerp.backend.stock.ArticleRepository;
-import com.novaerp.backend.stock.StockMovementService;
-import com.novaerp.backend.stock.StockMovementType;
-import com.novaerp.backend.stock.Supplier;
-import com.novaerp.backend.stock.SupplierRepository;
+import com.novaerp.backend.stock.*;
 import com.novaerp.backend.stock.dto.StockMovementRequest;
 import com.novaerp.backend.user.User;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +29,8 @@ public class PurchaseOrderService {
     private final SupplierRepository supplierRepository;
     private final ArticleRepository articleRepository;
     private final StockMovementService stockMovementService;
+    private final WarehouseRepository warehouseRepository;
+    private final WarehouseLocationRepository warehouseLocationRepository;
 
     private static final BigDecimal DEFAULT_TAX_RATE = new BigDecimal("20.00");
 
@@ -62,6 +59,8 @@ public class PurchaseOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La commande d'achat doit contenir au moins un article");
         }
 
+        WarehouseAndLocation wl = resolveAndValidateWarehouseAndLocation(request.warehouseId(), request.locationId());
+
         String orderNumber = generateOrderNumber();
 
         PurchaseOrder order = PurchaseOrder.builder()
@@ -70,6 +69,8 @@ public class PurchaseOrderService {
                 .status(PurchaseOrderStatus.DRAFT)
                 .taxRate(request.taxRate() != null ? request.taxRate() : DEFAULT_TAX_RATE)
                 .notes(request.notes())
+                .warehouse(wl.warehouse())
+                .location(wl.location())
                 .createdBy(user)
                 .createdAt(Instant.now())
                 .items(new ArrayList<>())
@@ -99,8 +100,12 @@ public class PurchaseOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La commande d'achat doit contenir au moins un article");
         }
 
+        WarehouseAndLocation wl = resolveAndValidateWarehouseAndLocation(request.warehouseId(), request.locationId());
+
         order.setSupplier(supplier);
         order.setNotes(request.notes());
+        order.setWarehouse(wl.warehouse());
+        order.setLocation(wl.location());
         if (request.taxRate() != null) {
             order.setTaxRate(request.taxRate());
         }
@@ -139,16 +144,69 @@ public class PurchaseOrderService {
                     "Seule une commande d'achat confirmée (CONFIRMED) peut être réceptionnée en stock");
         }
 
-        // Transactionally record IN stock movements via StockMovementService
-        for (PurchaseOrderItem item : order.getItems()) {
-            StockMovementRequest movementRequest = new StockMovementRequest(
-                    item.getArticle().getId(),
-                    StockMovementType.IN,
-                    item.getQuantity(),
-                    order.getOrderNumber(),
-                    "Réception commande fournisseur " + order.getOrderNumber() + " - Fournisseur: " + order.getSupplier().getName()
-            );
-            stockMovementService.record(movementRequest, user);
+        if (order.getWarehouse() == null) {
+            // Legacy / backward-compatible flow
+            for (PurchaseOrderItem item : order.getItems()) {
+                StockMovementRequest movementRequest = new StockMovementRequest(
+                        item.getArticle().getId(),
+                        StockMovementType.IN,
+                        item.getQuantity(),
+                        order.getOrderNumber(),
+                        "Réception commande fournisseur " + order.getOrderNumber() + " - Fournisseur: " + order.getSupplier().getName()
+                );
+                stockMovementService.record(movementRequest, user);
+            }
+        } else {
+            // Warehouse-aware receiving flow
+            Warehouse warehouse = warehouseRepository.findById(order.getWarehouse().getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "Entrepôt introuvable: ID " + order.getWarehouse().getId()));
+
+            if (!warehouse.isActive()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "L'entrepôt '" + warehouse.getName() + "' est inactif");
+            }
+
+            WarehouseLocation location;
+            if (order.getLocation() != null) {
+                location = warehouseLocationRepository.findById(order.getLocation().getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Emplacement introuvable: ID " + order.getLocation().getId()));
+
+                if (!location.isActive()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "L'emplacement '" + location.getName() + "' est inactif");
+                }
+
+                if (location.getWarehouse() == null || !location.getWarehouse().getId().equals(warehouse.getId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "L'emplacement n'appartient pas à l'entrepôt sélectionné");
+                }
+            } else {
+                location = warehouseLocationRepository.findByWarehouseIdAndCode(warehouse.getId(), "LOC-GEN")
+                        .or(() -> warehouseLocationRepository.findByWarehouseIdAndIsDefaultTrue(warehouse.getId()))
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Aucun emplacement par défaut trouvé pour l'entrepôt '" + warehouse.getName() + "'"));
+
+                if (!location.isActive()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "L'emplacement par défaut de l'entrepôt '" + warehouse.getName() + "' est inactif");
+                }
+                order.setLocation(location);
+            }
+
+            for (PurchaseOrderItem item : order.getItems()) {
+                StockMovementRequest movementRequest = new StockMovementRequest(
+                        item.getArticle().getId(),
+                        StockMovementType.IN,
+                        item.getQuantity(),
+                        order.getOrderNumber(),
+                        "Réception commande fournisseur " + order.getOrderNumber() + " - Fournisseur: " + order.getSupplier().getName(),
+                        warehouse.getId(),
+                        location.getId()
+                );
+                stockMovementService.record(movementRequest, user);
+            }
         }
 
         order.setStatus(PurchaseOrderStatus.RECEIVED);
@@ -158,6 +216,36 @@ public class PurchaseOrderService {
         log.info("Purchase order {} received and stock incremented", saved.getOrderNumber());
         return PurchaseOrderResponse.from(saved);
     }
+
+    private WarehouseAndLocation resolveAndValidateWarehouseAndLocation(Long warehouseId, Long locationId) {
+        if (warehouseId == null) {
+            if (locationId != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Un entrepôt doit être spécifié si un emplacement est fourni");
+            }
+            return new WarehouseAndLocation(null, null);
+        }
+
+        Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entrepôt introuvable: ID " + warehouseId));
+        if (!warehouse.isActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'entrepôt '" + warehouse.getName() + "' est inactif");
+        }
+
+        WarehouseLocation location = null;
+        if (locationId != null) {
+            location = warehouseLocationRepository.findById(locationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Emplacement introuvable: ID " + locationId));
+            if (!location.isActive()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'emplacement '" + location.getName() + "' est inactif");
+            }
+            if (location.getWarehouse() == null || !location.getWarehouse().getId().equals(warehouse.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'emplacement n'appartient pas à l'entrepôt sélectionné");
+            }
+        }
+        return new WarehouseAndLocation(warehouse, location);
+    }
+
+    private record WarehouseAndLocation(Warehouse warehouse, WarehouseLocation location) {}
 
     @Transactional
     public PurchaseOrderResponse cancel(Long id, User user) {
