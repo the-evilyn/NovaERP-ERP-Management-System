@@ -10,15 +10,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -38,6 +42,7 @@ class WarehouseControllerTest {
 
     private WarehouseResponse sampleWarehouseResponse;
     private WarehouseLocationResponse sampleLocationResponse;
+    private WarehouseStockResponse sampleStockResponse;
 
     @BeforeEach
     void setUp() {
@@ -64,6 +69,26 @@ class WarehouseControllerTest {
                 true,
                 true,
                 Instant.now(),
+                Instant.now()
+        );
+
+        sampleStockResponse = new WarehouseStockResponse(
+                1000L,
+                1L,
+                "WH-MAIN",
+                "Entrepôt Principal",
+                10L,
+                "LOC-GEN",
+                "Zone Générale",
+                50L,
+                "ART-001",
+                "Moteur Électrique",
+                "Électronique",
+                "Pièce",
+                new BigDecimal("20.00"),
+                new BigDecimal("5.00"),
+                new BigDecimal("150.00"),
+                new BigDecimal("3000.00"),
                 Instant.now()
         );
     }
@@ -421,5 +446,129 @@ class WarehouseControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(warehouseService, never()).setActiveWarehouse(any(), anyBoolean());
+    }
+
+    // ==========================================
+    // Stock Visibility Endpoints Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("Unauthenticated request to GET /api/warehouses/1/stocks is rejected (401 or 403)")
+    void testUnauthenticated_GetWarehouseStocks_Rejected() throws Exception {
+        mockMvc.perform(get("/api/warehouses/1/stocks"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
+                });
+    }
+
+    @Test
+    @DisplayName("Unauthenticated request to GET /api/warehouses/stocks/articles/50 is rejected (401 or 403)")
+    void testUnauthenticated_GetArticleStocks_Rejected() throws Exception {
+        mockMvc.perform(get("/api/warehouses/stocks/articles/50"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
+                });
+    }
+
+    @Test
+    @DisplayName("GET /api/warehouses/{warehouseId}/stocks: 200 OK with default parameters and user role allowed")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testListWarehouseStocks_DefaultParams_Success() throws Exception {
+        when(warehouseService.listWarehouseStocks(eq(1L), eq(null), eq(false), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sampleStockResponse)));
+
+        mockMvc.perform(get("/api/warehouses/1/stocks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(1000))
+                .andExpect(jsonPath("$.content[0].warehouseId").value(1))
+                .andExpect(jsonPath("$.content[0].warehouseCode").value("WH-MAIN"))
+                .andExpect(jsonPath("$.content[0].locationId").value(10))
+                .andExpect(jsonPath("$.content[0].locationCode").value("LOC-GEN"))
+                .andExpect(jsonPath("$.content[0].articleId").value(50))
+                .andExpect(jsonPath("$.content[0].articleReference").value("ART-001"))
+                .andExpect(jsonPath("$.content[0].articleDesignation").value("Moteur Électrique"))
+                .andExpect(jsonPath("$.content[0].categoryName").value("Électronique"))
+                .andExpect(jsonPath("$.content[0].unitName").value("Pièce"))
+                .andExpect(jsonPath("$.content[0].quantity").value(20.0))
+                .andExpect(jsonPath("$.content[0].minQuantity").value(5.0))
+                .andExpect(jsonPath("$.content[0].purchasePriceHt").value(150.0))
+                .andExpect(jsonPath("$.content[0].totalValueHt").value(3000.0))
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        verify(warehouseService).listWarehouseStocks(eq(1L), eq(null), eq(false), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("GET /api/warehouses/{warehouseId}/stocks: forwards locationId, positiveOnly, and pagination parameters")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testListWarehouseStocks_ForwardsAllParameters() throws Exception {
+        when(warehouseService.listWarehouseStocks(eq(1L), eq(10L), eq(true), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sampleStockResponse), org.springframework.data.domain.PageRequest.of(2, 5), 15));
+
+        mockMvc.perform(get("/api/warehouses/1/stocks")
+                        .param("locationId", "10")
+                        .param("positiveOnly", "true")
+                        .param("page", "2")
+                        .param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(15));
+
+        verify(warehouseService).listWarehouseStocks(
+                eq(1L),
+                eq(10L),
+                eq(true),
+                argThat(p -> p.getPageNumber() == 2 && p.getPageSize() == 5)
+        );
+    }
+
+    @Test
+    @DisplayName("GET /api/warehouses/{warehouseId}/stocks: warehouse not found returns 404 NOT_FOUND")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testListWarehouseStocks_WarehouseNotFound_Returns404() throws Exception {
+        when(warehouseService.listWarehouseStocks(eq(99L), any(), anyBoolean(), any(Pageable.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Warehouse not found"));
+
+        mockMvc.perform(get("/api/warehouses/99/stocks"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /api/warehouses/{warehouseId}/stocks: location mismatch returns 400 BAD_REQUEST")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testListWarehouseStocks_LocationMismatch_Returns400() throws Exception {
+        when(warehouseService.listWarehouseStocks(eq(1L), eq(999L), anyBoolean(), any(Pageable.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Location does not belong to specified warehouse"));
+
+        mockMvc.perform(get("/api/warehouses/1/stocks").param("locationId", "999"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /api/warehouses/stocks/articles/{articleId}: 200 OK with articleId forwarded correctly")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testListArticleStocks_Success() throws Exception {
+        when(warehouseService.listArticleStocks(50L))
+                .thenReturn(List.of(sampleStockResponse));
+
+        mockMvc.perform(get("/api/warehouses/stocks/articles/50"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].articleId").value(50))
+                .andExpect(jsonPath("$[0].warehouseCode").value("WH-MAIN"))
+                .andExpect(jsonPath("$[0].totalValueHt").value(3000.0));
+
+        verify(warehouseService).listArticleStocks(50L);
+    }
+
+    @Test
+    @DisplayName("GET /api/warehouses/stocks/articles/{articleId}: article not found returns 404 NOT_FOUND")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testListArticleStocks_ArticleNotFound_Returns404() throws Exception {
+        when(warehouseService.listArticleStocks(999L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Article not found"));
+
+        mockMvc.perform(get("/api/warehouses/stocks/articles/999"))
+                .andExpect(status().isNotFound());
     }
 }

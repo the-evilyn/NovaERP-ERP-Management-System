@@ -75,6 +75,7 @@ export function useReceivePurchaseOrder() {
       queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-kpis"] });
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
     },
   });
 }
@@ -89,6 +90,7 @@ export function useCancelPurchaseOrder() {
       queryClient.invalidateQueries({ queryKey: ["articles"] });
       queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
     },
   });
 }

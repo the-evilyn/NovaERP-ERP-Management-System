@@ -33,6 +33,10 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     @Query("SELECT a FROM Article a WHERE a.id = :id")
     Optional<Article> findByIdForUpdate(@Param("id") Long id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Article a WHERE a.id IN :ids ORDER BY a.id ASC")
+    List<Article> findAllByIdInForUpdate(@Param("ids") List<Long> ids);
+
     @Override
     @EntityGraph(attributePaths = {"category", "unit"})
     Page<Article> findAll(Pageable pageable);

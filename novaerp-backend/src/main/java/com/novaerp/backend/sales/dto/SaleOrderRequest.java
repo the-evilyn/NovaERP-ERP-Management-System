@@ -17,6 +17,18 @@ public record SaleOrderRequest(
 
         BigDecimal taxRate,
 
-        String notes
+        String notes,
+
+        Long warehouseId,
+
+        Long locationId
 ) {
+    public SaleOrderRequest(
+            Long clientId,
+            List<SaleOrderItemRequest> items,
+            BigDecimal taxRate,
+            String notes
+    ) {
+        this(clientId, items, taxRate, notes, null, null);
+    }
 }

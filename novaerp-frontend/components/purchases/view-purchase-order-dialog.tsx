@@ -156,8 +156,8 @@ export function ViewPurchaseOrderDialog({
             </Alert>
           )}
 
-          {/* Supplier Info & Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-lg border text-xs">
+          {/* Supplier Info, Dates & Warehouse */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-lg border text-xs">
             <div>
               <span className="text-muted-foreground block">Fournisseur :</span>
               <span className="font-semibold text-foreground text-sm">{order.supplierName}</span>
@@ -172,6 +172,22 @@ export function ViewPurchaseOrderDialog({
               <span className="text-muted-foreground block">Réception en stock :</span>
               <span className="font-medium text-foreground">
                 {order.receivedAt ? formatDateTime(order.receivedAt) : "Non réceptionnée"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Entrepôt :</span>
+              <span className="font-medium text-foreground">
+                {order.warehouseCode
+                  ? `${order.warehouseCode}${order.warehouseName ? ` — ${order.warehouseName}` : ""}`
+                  : order.warehouseName || "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Emplacement :</span>
+              <span className="font-medium text-foreground">
+                {order.locationCode
+                  ? `${order.locationCode}${order.locationName ? ` — ${order.locationName}` : ""}`
+                  : order.locationName || "—"}
               </span>
             </div>
           </div>

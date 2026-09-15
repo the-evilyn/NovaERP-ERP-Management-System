@@ -9,6 +9,7 @@ import type {
   WarehouseLocationResponse,
   WarehouseRequest,
   WarehouseResponse,
+  WarehouseStockResponse,
 } from '@/types/models';
 
 export async function getWarehouses(
@@ -117,6 +118,32 @@ export async function setLocationActive(
   const { data } = await api.patch<WarehouseLocationResponse>(
     `/warehouses/${warehouseId}/locations/${locationId}/active`,
     body,
+  );
+  return data;
+}
+
+export async function getWarehouseStocks(
+  warehouseId: number,
+  params?: {
+    locationId?: number;
+    positiveOnly?: boolean;
+    page?: number;
+    size?: number;
+    sort?: string;
+  },
+): Promise<Page<WarehouseStockResponse>> {
+  const { data } = await api.get<Page<WarehouseStockResponse>>(
+    `/warehouses/${warehouseId}/stocks`,
+    { params },
+  );
+  return data;
+}
+
+export async function getArticleWarehouseStocks(
+  articleId: number,
+): Promise<WarehouseStockResponse[]> {
+  const { data } = await api.get<WarehouseStockResponse[]>(
+    `/warehouses/stocks/articles/${articleId}`,
   );
   return data;
 }

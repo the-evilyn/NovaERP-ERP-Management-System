@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useArticles } from "@/hooks/use-articles";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { useCreatePurchaseOrder } from "@/hooks/use-purchases";
+import { useWarehouseLocations, useWarehouses } from "@/hooks/use-warehouses";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency, formatQuantity } from "@/lib/formatters";
 import type { PurchaseOrderItemRequest } from "@/types/models";
@@ -40,6 +41,8 @@ export function CreatePurchaseOrderDialog({
   onOpenChange,
 }: CreatePurchaseOrderDialogProps): React.ReactElement {
   const [supplierId, setSupplierId] = useState<number | "">("");
+  const [warehouseId, setWarehouseId] = useState<number | "">("");
+  const [locationId, setLocationId] = useState<number | "">("");
   const [taxRate, setTaxRate] = useState<number>(20);
   const [notes, setNotes] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -50,10 +53,25 @@ export function CreatePurchaseOrderDialog({
 
   const { data: suppliersData, isLoading: loadingSuppliers } = useSuppliers(0, 100);
   const { data: articlesData, isLoading: loadingArticles } = useArticles(0, 300);
+  const { data: warehousesData, isLoading: loadingWarehouses } = useWarehouses(0, 100, true);
+  const { data: locationsData, isLoading: loadingLocations } = useWarehouseLocations(
+    typeof warehouseId === "number" ? warehouseId : 0,
+    0,
+    100,
+    true,
+  );
   const createOrderMutation = useCreatePurchaseOrder();
 
   const suppliers = suppliersData?.content ?? [];
   const articles = articlesData?.content ?? [];
+  const warehouses = warehousesData?.content ?? [];
+  const locations = locationsData?.content ?? [];
+
+  const handleWarehouseChange = (value: string) => {
+    const nextWhId = value ? Number(value) : "";
+    setWarehouseId(nextWhId);
+    setLocationId("");
+  };
 
   const handleAddLine = () => {
     setLines((prev) => [
@@ -116,6 +134,11 @@ export function CreatePurchaseOrderDialog({
       return;
     }
 
+    if (!warehouseId && locationId) {
+      setErrorMsg("Un entrepôt doit être sélectionné si un emplacement est spécifié.");
+      return;
+    }
+
     if (lines.length === 0 || lines.some((l) => !l.articleId || l.quantity <= 0)) {
       setErrorMsg("Veuillez renseigner correctement les lignes d'articles et quantités.");
       return;
@@ -126,6 +149,8 @@ export function CreatePurchaseOrderDialog({
         supplierId: Number(supplierId),
         taxRate,
         notes: notes.trim() || undefined,
+        warehouseId: warehouseId !== "" ? Number(warehouseId) : undefined,
+        locationId: locationId !== "" ? Number(locationId) : undefined,
         items: lines.map((l) => ({
           articleId: l.articleId,
           quantity: l.quantity,
@@ -136,6 +161,8 @@ export function CreatePurchaseOrderDialog({
 
       // Reset and close
       setSupplierId("");
+      setWarehouseId("");
+      setLocationId("");
       setNotes("");
       setLines([{ articleId: 0, quantity: 1, unitPrice: 0, taxRate: 20 }]);
       onOpenChange(false);
@@ -195,6 +222,57 @@ export function CreatePurchaseOrderDialog({
                   value={taxRate}
                   onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
                 />
+              </Field>
+            </div>
+
+            {/* Warehouse & Location Selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="po-warehouse-select">Entrepôt de destination (Optionnel)</FieldLabel>
+                <select
+                  id="po-warehouse-select"
+                  value={warehouseId}
+                  onChange={(e) => handleWarehouseChange(e.target.value)}
+                  disabled={loadingWarehouses}
+                  aria-label="Sélectionner un entrepôt de destination"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">
+                    {loadingWarehouses
+                      ? "Chargement des entrepôts..."
+                      : "-- Aucun entrepôt (Hérité / Principal) --"}
+                  </option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.code} — {w.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="po-location-select">Emplacement de destination (Optionnel)</FieldLabel>
+                <select
+                  id="po-location-select"
+                  value={locationId}
+                  onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : "")}
+                  disabled={warehouseId === "" || loadingLocations}
+                  aria-label="Sélectionner un emplacement de destination"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">
+                    {warehouseId === ""
+                      ? "-- Sélectionner d'abord un entrepôt --"
+                      : loadingLocations
+                        ? "Chargement des emplacements..."
+                        : "-- Emplacement par défaut --"}
+                  </option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.code} — {loc.name} {loc.isDefault ? "(Défaut)" : ""}
+                    </option>
+                  ))}
+                </select>
               </Field>
             </div>
 

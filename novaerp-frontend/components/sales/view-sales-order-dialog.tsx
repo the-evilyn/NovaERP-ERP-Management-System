@@ -153,7 +153,7 @@ export function ViewSalesOrderDialog({
           )}
 
           {/* Client & Metadata Card */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-muted/40 p-3 rounded-lg text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-muted/40 p-3 rounded-lg text-xs">
             <div>
               <span className="text-muted-foreground block">Client:</span>
               <span className="font-semibold text-sm">{order.clientName}</span>
@@ -172,6 +172,22 @@ export function ViewSalesOrderDialog({
               <span className="text-muted-foreground block">Statut Stock:</span>
               <span className="font-medium">
                 {order.status === "CONFIRMED" ? "Décrémenté (OUT)" : "Réservation DRAFT"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Entrepôt:</span>
+              <span className="font-medium">
+                {order.warehouseCode
+                  ? `${order.warehouseCode}${order.warehouseName ? ` — ${order.warehouseName}` : ""}`
+                  : order.warehouseName || "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Emplacement:</span>
+              <span className="font-medium">
+                {order.locationCode
+                  ? `${order.locationCode}${order.locationName ? ` — ${order.locationName}` : ""}`
+                  : order.locationName || "—"}
               </span>
             </div>
           </div>

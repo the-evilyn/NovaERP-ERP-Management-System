@@ -1,9 +1,11 @@
 package com.novaerp.backend.stock;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,6 +17,14 @@ public interface WarehouseStockRepository extends JpaRepository<WarehouseStock, 
 
     @EntityGraph(attributePaths = {"article", "warehouse", "location"})
     Optional<WarehouseStock> findByArticleIdAndWarehouseIdAndLocationId(Long articleId, Long warehouseId, Long locationId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT ws FROM WarehouseStock ws WHERE ws.article.id = :articleId AND ws.warehouse.id = :warehouseId AND ws.location.id = :locationId")
+    Optional<WarehouseStock> findByArticleIdAndWarehouseIdAndLocationIdForUpdate(
+            @Param("articleId") Long articleId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("locationId") Long locationId
+    );
 
     @EntityGraph(attributePaths = {"warehouse", "location"})
     List<WarehouseStock> findByArticleId(Long articleId);
@@ -40,4 +50,22 @@ public interface WarehouseStockRepository extends JpaRepository<WarehouseStock, 
 
     @Query("SELECT COALESCE(SUM(ws.quantity), 0) FROM WarehouseStock ws")
     BigDecimal sumTotalStockQuantity();
+
+    @Query(
+            value = "SELECT ws FROM WarehouseStock ws " +
+                    "WHERE ws.warehouse.id = :warehouseId " +
+                    "AND (:locationId IS NULL OR ws.location.id = :locationId) " +
+                    "AND (:positiveOnly = false OR ws.quantity > 0)",
+            countQuery = "SELECT COUNT(ws) FROM WarehouseStock ws " +
+                    "WHERE ws.warehouse.id = :warehouseId " +
+                    "AND (:locationId IS NULL OR ws.location.id = :locationId) " +
+                    "AND (:positiveOnly = false OR ws.quantity > 0)"
+    )
+    @EntityGraph(attributePaths = {"article", "article.unit", "article.category", "location", "warehouse"})
+    Page<WarehouseStock> findWarehouseStocks(
+            @Param("warehouseId") Long warehouseId,
+            @Param("locationId") Long locationId,
+            @Param("positiveOnly") boolean positiveOnly,
+            Pageable pageable
+    );
 }

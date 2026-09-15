@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useArticles } from "@/hooks/use-articles";
 import { useClients } from "@/hooks/use-clients";
 import { useCreateSaleOrder } from "@/hooks/use-sales";
+import { useWarehouseLocations, useWarehouses } from "@/hooks/use-warehouses";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency, formatQuantity } from "@/lib/formatters";
 import type { SaleOrderItemRequest } from "@/types/models";
@@ -40,6 +41,8 @@ export function CreateSalesOrderDialog({
   onOpenChange,
 }: CreateSalesOrderDialogProps): React.ReactElement {
   const [clientId, setClientId] = useState<number | "">("");
+  const [warehouseId, setWarehouseId] = useState<number | "">("");
+  const [locationId, setLocationId] = useState<number | "">("");
   const [taxRate, setTaxRate] = useState<number>(20);
   const [notes, setNotes] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -50,10 +53,25 @@ export function CreateSalesOrderDialog({
 
   const { data: clientsData, isLoading: loadingClients } = useClients(0, 100);
   const { data: articlesData, isLoading: loadingArticles } = useArticles(0, 300);
+  const { data: warehousesData, isLoading: loadingWarehouses } = useWarehouses(0, 100, true);
+  const { data: locationsData, isLoading: loadingLocations } = useWarehouseLocations(
+    typeof warehouseId === "number" ? warehouseId : 0,
+    0,
+    100,
+    true,
+  );
   const createOrderMutation = useCreateSaleOrder();
 
   const clients = clientsData?.content ?? [];
   const articles = articlesData?.content ?? [];
+  const warehouses = warehousesData?.content ?? [];
+  const locations = locationsData?.content ?? [];
+
+  const handleWarehouseChange = (value: string) => {
+    const nextWhId = value ? Number(value) : "";
+    setWarehouseId(nextWhId);
+    setLocationId("");
+  };
 
   const handleAddLine = () => {
     setLines((prev) => [
@@ -126,6 +144,11 @@ export function CreateSalesOrderDialog({
       return;
     }
 
+    if (!warehouseId && locationId) {
+      setErrorMsg("Un entrepôt doit être sélectionné si un emplacement est spécifié.");
+      return;
+    }
+
     const validLines = lines.filter((l) => l.articleId > 0 && l.quantity > 0);
     if (validLines.length === 0) {
       setErrorMsg("Veuillez ajouter au moins un article valide.");
@@ -137,6 +160,8 @@ export function CreateSalesOrderDialog({
         clientId: Number(clientId),
         taxRate,
         notes: notes.trim() || undefined,
+        warehouseId: warehouseId !== "" ? Number(warehouseId) : undefined,
+        locationId: locationId !== "" ? Number(locationId) : undefined,
         items: validLines.map((l) => ({
           articleId: l.articleId,
           quantity: l.quantity,
@@ -147,6 +172,8 @@ export function CreateSalesOrderDialog({
 
       // Reset and close
       setClientId("");
+      setWarehouseId("");
+      setLocationId("");
       setNotes("");
       setLines([{ articleId: 0, quantity: 1, unitPrice: 0, taxRate: 20 }]);
       onOpenChange(false);
@@ -208,6 +235,59 @@ export function CreateSalesOrderDialog({
                     value={taxRate}
                     onChange={(e) => setTaxRate(Number(e.target.value))}
                   />
+                </Field>
+              </div>
+            </div>
+
+            {/* Warehouse & Location Selectors */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Field>
+                  <FieldLabel>Entrepôt (Optionnel)</FieldLabel>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={warehouseId}
+                    onChange={(e) => handleWarehouseChange(e.target.value)}
+                    disabled={loadingWarehouses}
+                  >
+                    <option value="">
+                      {loadingWarehouses
+                        ? "Chargement des entrepôts..."
+                        : "-- Aucun entrepôt (Hérité / Principal) --"}
+                    </option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.code} — {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <div>
+                <Field>
+                  <FieldLabel>Emplacement (Optionnel)</FieldLabel>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={locationId}
+                    onChange={(e) =>
+                      setLocationId(e.target.value ? Number(e.target.value) : "")
+                    }
+                    disabled={warehouseId === "" || loadingLocations}
+                  >
+                    <option value="">
+                      {warehouseId === ""
+                        ? "-- Sélectionner d'abord un entrepôt --"
+                        : loadingLocations
+                          ? "Chargement des emplacements..."
+                          : "-- Emplacement par défaut --"}
+                    </option>
+                    {locations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.code} — {loc.name} {loc.isDefault ? "(Défaut)" : ""}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               </div>
             </div>

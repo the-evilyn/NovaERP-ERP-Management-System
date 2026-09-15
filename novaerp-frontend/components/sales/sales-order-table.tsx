@@ -134,6 +134,7 @@ export function SalesOrderTable(): React.ReactElement {
             <tr>
               <th className="p-3 text-left">N° Commande</th>
               <th className="p-3 text-left">Client</th>
+              <th className="p-3 text-left">Entrepôt / Emplacement</th>
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-center">Articles</th>
               <th className="p-3 text-right">Total HT</th>
@@ -145,13 +146,13 @@ export function SalesOrderTable(): React.ReactElement {
           <tbody className="divide-y text-xs">
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                <td colSpan={9} className="p-8 text-center text-muted-foreground">
                   Chargement des commandes de vente...
                 </td>
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-destructive">
+                <td colSpan={9} className="p-8 text-center text-destructive">
                   <div className="flex items-center justify-center gap-2">
                     <HugeiconsIcon icon={AlertCircleIcon} className="size-4" />
                     Erreur lors de la récupération des commandes.
@@ -160,7 +161,7 @@ export function SalesOrderTable(): React.ReactElement {
               </tr>
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-12 text-center text-muted-foreground">
+                <td colSpan={9} className="p-12 text-center text-muted-foreground">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Aucune commande de vente</p>
                     <p className="text-xs text-muted-foreground">
@@ -185,6 +186,22 @@ export function SalesOrderTable(): React.ReactElement {
                       <div className="text-[11px] text-muted-foreground">
                         {order.clientCity}
                       </div>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {order.warehouseCode ? (
+                      <div className="space-y-0.5 min-w-[120px]">
+                        <div className="font-medium text-foreground">
+                          {order.warehouseCode}{order.warehouseName ? ` — ${order.warehouseName}` : ""}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {order.locationCode
+                            ? `${order.locationCode}${order.locationName ? ` — ${order.locationName}` : ""}`
+                            : "—"}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </td>
                   <td className="p-3 text-muted-foreground">
