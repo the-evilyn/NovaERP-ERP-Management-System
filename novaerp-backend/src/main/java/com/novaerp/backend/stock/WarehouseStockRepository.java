@@ -1,9 +1,11 @@
 package com.novaerp.backend.stock;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,6 +17,14 @@ public interface WarehouseStockRepository extends JpaRepository<WarehouseStock, 
 
     @EntityGraph(attributePaths = {"article", "warehouse", "location"})
     Optional<WarehouseStock> findByArticleIdAndWarehouseIdAndLocationId(Long articleId, Long warehouseId, Long locationId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT ws FROM WarehouseStock ws WHERE ws.article.id = :articleId AND ws.warehouse.id = :warehouseId AND ws.location.id = :locationId")
+    Optional<WarehouseStock> findByArticleIdAndWarehouseIdAndLocationIdForUpdate(
+            @Param("articleId") Long articleId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("locationId") Long locationId
+    );
 
     @EntityGraph(attributePaths = {"warehouse", "location"})
     List<WarehouseStock> findByArticleId(Long articleId);

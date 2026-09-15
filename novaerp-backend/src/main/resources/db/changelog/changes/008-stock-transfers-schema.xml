@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 1. STOCK TRANSFERS TABLE -->
+    <changeSet id="008-create-table-stock-transfers" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="stock_transfers"/>
+            </not>
+        </preConditions>
+        <createTable tableName="stock_transfers">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="stock_transfers_pkey" nullable="false"/>
+            </column>
+            <column name="transfer_number" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_stock_transfers_number"/>
+            </column>
+            <column name="status" type="VARCHAR(30)" defaultValue="DRAFT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_warehouse_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_stock_transfers_src_wh" references="warehouses(id)"/>
+            </column>
+            <column name="source_location_id" type="BIGINT">
+                <constraints foreignKeyName="fk_stock_transfers_src_loc" references="warehouse_locations(id)"/>
+            </column>
+            <column name="destination_warehouse_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_stock_transfers_dst_wh" references="warehouses(id)"/>
+            </column>
+            <column name="destination_location_id" type="BIGINT">
+                <constraints foreignKeyName="fk_stock_transfers_dst_loc" references="warehouse_locations(id)"/>
+            </column>
+            <column name="notes" type="VARCHAR(1000)"/>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_stock_transfers_user" references="users(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="completed_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="cancelled_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+    </changeSet>
+
+    <!-- 2. STOCK TRANSFER ITEMS TABLE -->
+    <changeSet id="008-create-table-stock-transfer-items" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="stock_transfer_items"/>
+            </not>
+        </preConditions>
+        <createTable tableName="stock_transfer_items">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="stock_transfer_items_pkey" nullable="false"/>
+            </column>
+            <column name="transfer_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_stock_transfer_items_transfer" references="stock_transfers(id)" deleteCascade="true"/>
+            </column>
+            <column name="article_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_stock_transfer_items_article" references="articles(id)"/>
+            </column>
+            <column name="quantity" type="NUMERIC(19,4)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 3. CREATE INDEXES ON STOCK TRANSFERS AND ITEMS -->
+    <changeSet id="008-create-indexes-stock-transfers" author="novaerp">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="stock_transfers"/>
+            <tableExists tableName="stock_transfer_items"/>
+        </preConditions>
+        <createIndex indexName="idx_stock_transfers_status" tableName="stock_transfers">
+            <column name="status"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_transfers_src_wh" tableName="stock_transfers">
+            <column name="source_warehouse_id"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_transfers_dst_wh" tableName="stock_transfers">
+            <column name="destination_warehouse_id"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_transfers_src_loc" tableName="stock_transfers">
+            <column name="source_location_id"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_transfers_dst_loc" tableName="stock_transfers">
+            <column name="destination_location_id"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_transfers_created_by" tableName="stock_transfers">
+            <column name="created_by"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_transfer_items_transfer" tableName="stock_transfer_items">
+            <column name="transfer_id"/>
+        </createIndex>
+        <createIndex indexName="idx_stock_transfer_items_article" tableName="stock_transfer_items">
+            <column name="article_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
