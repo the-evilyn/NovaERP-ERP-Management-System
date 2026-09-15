@@ -2,6 +2,7 @@
 
 import {
   AiBrain01Icon,
+  ArrowDataTransferHorizontalIcon,
   Building03Icon,
   DashboardSquare01Icon,
   Exchange02Icon,
@@ -45,6 +46,11 @@ const navMain: NavMainItem[] = [
     title: "Mouvements de stock",
     url: "/stock-movements",
     icon: Exchange02Icon,
+  },
+  {
+    title: "Transferts de stock",
+    url: "/stock/transfers",
+    icon: ArrowDataTransferHorizontalIcon,
   },
   {
     title: "Import / Export",

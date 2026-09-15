@@ -670,3 +670,57 @@ export interface InvoicePaymentSummaryResponse {
   isFullyPaid: boolean;
   payments: PaymentResponse[];
 }
+
+// ---- Stock Transfers ----
+export type StockTransferStatus = "DRAFT" | "COMPLETED" | "CANCELLED";
+
+export interface StockTransferItemRequest {
+  articleId: number;
+  quantity: number;
+}
+
+export interface StockTransferRequest {
+  sourceWarehouseId: number;
+  sourceLocationId?: number | null;
+  destinationWarehouseId: number;
+  destinationLocationId?: number | null;
+  notes?: string | null;
+  items: StockTransferItemRequest[];
+}
+
+export interface StockTransferItemResponse {
+  id: number;
+  articleId: number;
+  articleReference: string;
+  articleDesignation: string;
+  unitSymbol: string | null;
+  quantity: number;
+}
+
+export interface StockTransferResponse {
+  id: number;
+  transferNumber: string;
+  status: StockTransferStatus;
+  sourceWarehouseId: number;
+  sourceWarehouseCode: string;
+  sourceWarehouseName: string;
+  sourceLocationId: number | null;
+  sourceLocationCode: string | null;
+  sourceLocationName: string | null;
+  destinationWarehouseId: number;
+  destinationWarehouseCode: string;
+  destinationWarehouseName: string;
+  destinationLocationId: number | null;
+  destinationLocationCode: string | null;
+  destinationLocationName: string | null;
+  notes: string | null;
+  createdById: number | null;
+  createdByName: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  items: StockTransferItemResponse[];
+}
+
+export type StockTransfer = StockTransferResponse;
+export type StockTransferItem = StockTransferItemResponse;
