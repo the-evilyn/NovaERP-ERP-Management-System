@@ -8,7 +8,7 @@ export const TOKEN_COOKIE_NAME = 'novaerp_token';
 export const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24; // matches backend JWT_EXPIRATION_MS default (24h)
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:8081/api',
   headers: {
     'Content-Type': 'application/json',
   },
