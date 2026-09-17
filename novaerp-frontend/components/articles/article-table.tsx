@@ -11,7 +11,7 @@ import {
   PencilEdit01Icon,
 } from "@hugeicons/core-free-icons";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Menu,
   MenuItem,
   MenuPopup,
@@ -38,6 +45,7 @@ import { ArticleSupplierPrices } from "@/components/articles/article-supplier-pr
 import { CreateArticleDialog } from "@/components/articles/create-article-dialog";
 import { EditArticleDialog } from "@/components/articles/edit-article-dialog";
 import { useArticles, useDeleteArticle } from "@/hooks/use-articles";
+import { useCategories } from "@/hooks/use-categories";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatCurrency } from "@/lib/formatters";
 import { useAuth } from "@/providers/auth-provider";
@@ -50,6 +58,9 @@ export function ArticleTable(): React.ReactElement {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
+  const [lowStockOnly, setLowStockOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -58,7 +69,24 @@ export function ArticleTable(): React.ReactElement {
     null,
   );
 
-  const { data, isPending } = useArticles(currentPage - 1, pageSize);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data: categoriesPage } = useCategories(0, 100);
+  const categories = categoriesPage?.content ?? [];
+
+  const { data, isPending } = useArticles(
+    currentPage - 1,
+    pageSize,
+    debouncedSearch,
+    selectedCategoryId,
+    lowStockOnly,
+  );
   const deleteArticle = useDeleteArticle();
 
   const handleBulkDelete = async () => {
@@ -174,6 +202,7 @@ export function ArticleTable(): React.ReactElement {
         emptyMessage={isPending ? "Chargement..." : "Aucun article trouvé."}
         searchValue={search}
         onSearchChange={setSearch}
+        manualFiltering={true}
         selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
@@ -190,23 +219,66 @@ export function ArticleTable(): React.ReactElement {
           ) : undefined
         }
         customHeader={
-          isAdmin ? (
-            <>
-              {selectedIds.length > 0 && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                  Supprimer ({selectedIds.length})
-                </Button>
-              )}
-              <Button onClick={() => setCreateDialogOpen(true)}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              items={[
+                { label: "Toutes les catégories", value: "ALL" },
+                ...categories.map((c) => ({
+                  label: c.name,
+                  value: String(c.id),
+                })),
+              ]}
+              value={selectedCategoryId ? String(selectedCategoryId) : "ALL"}
+              onValueChange={(val) => {
+                setSelectedCategoryId(
+                  val && val !== "ALL" ? Number(val) : undefined,
+                );
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger size="sm" className="w-44 text-xs">
+                <SelectValue placeholder="Toutes les catégories" />
+              </SelectTrigger>
+              <SelectPopup>
+                <SelectItem value="ALL">Toutes les catégories</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+
+            <Button
+              type="button"
+              variant={lowStockOnly ? "destructive" : "outline"}
+              size="sm"
+              onClick={() => {
+                setLowStockOnly((prev) => !prev);
+                setCurrentPage(1);
+              }}
+            >
+              <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} />
+              Stock faible
+            </Button>
+
+            {isAdmin && selectedIds.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                Supprimer ({selectedIds.length})
+              </Button>
+            )}
+            {isAdmin && (
+              <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
                 <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
                 Nouvel article
               </Button>
-            </>
-          ) : undefined
+            )}
+          </div>
         }
         actions={
           isAdmin

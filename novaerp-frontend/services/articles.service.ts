@@ -14,9 +14,23 @@ import type {
 export async function getArticles(
   page = 0,
   size = 20,
+  search?: string,
+  categoryId?: number,
+  lowStock?: boolean,
 ): Promise<Page<ArticleResponse>> {
+  const params: Record<string, unknown> = { page, size };
+  if (search && search.trim()) {
+    params.search = search.trim();
+  }
+  if (categoryId !== undefined && categoryId !== null) {
+    params.categoryId = categoryId;
+  }
+  if (lowStock === true) {
+    params.lowStock = true;
+  }
+
   const { data } = await api.get<Page<ArticleResponse>>('/stock/articles', {
-    params: { page, size },
+    params,
   });
   return data;
 }

@@ -41,6 +41,32 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     @EntityGraph(attributePaths = {"category", "unit"})
     Page<Article> findAll(Pageable pageable);
 
+    @Query(
+            value = "SELECT a FROM Article a LEFT JOIN a.category c WHERE " +
+                    "(:search IS NULL OR :search = '' OR " +
+                    " LOWER(a.reference) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+                    " LOWER(a.designation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+                    " (a.brand IS NOT NULL AND LOWER(a.brand) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
+                    " (a.barcode IS NOT NULL AND LOWER(a.barcode) LIKE LOWER(CONCAT('%', :search, '%')))) AND " +
+                    "(:categoryId IS NULL OR c.id = :categoryId) AND " +
+                    "(:lowStock IS NULL OR :lowStock = false OR a.stockQuantity <= a.minStockQuantity)",
+            countQuery = "SELECT COUNT(a) FROM Article a LEFT JOIN a.category c WHERE " +
+                    "(:search IS NULL OR :search = '' OR " +
+                    " LOWER(a.reference) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+                    " LOWER(a.designation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+                    " (a.brand IS NOT NULL AND LOWER(a.brand) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
+                    " (a.barcode IS NOT NULL AND LOWER(a.barcode) LIKE LOWER(CONCAT('%', :search, '%')))) AND " +
+                    "(:categoryId IS NULL OR c.id = :categoryId) AND " +
+                    "(:lowStock IS NULL OR :lowStock = false OR a.stockQuantity <= a.minStockQuantity)"
+    )
+    @EntityGraph(attributePaths = {"category", "unit"})
+    Page<Article> searchArticles(
+            @Param("search") String search,
+            @Param("categoryId") Long categoryId,
+            @Param("lowStock") Boolean lowStock,
+            Pageable pageable
+    );
+
     @Query("SELECT COALESCE(SUM(a.stockQuantity), 0) FROM Article a")
     BigDecimal sumTotalStockQuantity();
 

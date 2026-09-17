@@ -55,6 +55,7 @@ export interface DataTableProps<T> {
   renderExpandedRow?: (item: T) => ReactNode;
   onRowExpand?: (item: T) => void;
   footer?: ReactNode;
+  manualFiltering?: boolean;
 }
 
 export function DataTable<T extends object>({
@@ -77,6 +78,7 @@ export function DataTable<T extends object>({
   renderExpandedRow,
   onRowExpand,
   footer,
+  manualFiltering = false,
 }: DataTableProps<T>): React.ReactElement {
   const [internalSearch, setInternalSearch] = useState("");
   const searchTerm = searchValue ?? internalSearch;
@@ -100,7 +102,7 @@ export function DataTable<T extends object>({
   };
 
   const filteredData = useMemo(() => {
-    if (!searchTerm) return data;
+    if (manualFiltering || !searchTerm) return data;
     return data.filter((item) =>
       searchKeys.some((key) => {
         const value = getNestedValue(item, key);
@@ -111,7 +113,7 @@ export function DataTable<T extends object>({
       }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, searchTerm, searchKeys]);
+  }, [data, searchTerm, searchKeys, manualFiltering]);
 
   const renderCell = (item: T, column: TableColumn<T>): ReactNode => {
     if (column.render) return column.render(item);

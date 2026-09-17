@@ -39,9 +39,29 @@ public class ArticleController {
     private final StockImportExportService importExportService;
 
     @GetMapping
-    @Operation(summary = "List all articles")
-    public Page<ArticleResponse> list(@PageableDefault(size = 20, sort = "id") Pageable pageable) {
-        return articleRepository.findAll(pageable).map(ArticleResponse::from);
+    @Operation(summary = "List all articles with optional search, category or low-stock filtering")
+    public Page<ArticleResponse> list(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Boolean lowStock,
+            @PageableDefault(size = 20, sort = "id") Pageable pageable) {
+        String trimmedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
+        boolean hasFilter = trimmedSearch != null || categoryId != null || Boolean.TRUE.equals(lowStock);
+
+        if (!hasFilter) {
+            return articleRepository.findAll(pageable).map(ArticleResponse::from);
+        }
+
+        return articleRepository.searchArticles(
+                trimmedSearch,
+                categoryId,
+                Boolean.TRUE.equals(lowStock) ? true : null,
+                pageable
+        ).map(ArticleResponse::from);
+    }
+
+    public Page<ArticleResponse> list(Pageable pageable) {
+        return list(null, null, null, pageable);
     }
 
     @GetMapping("/{id}")

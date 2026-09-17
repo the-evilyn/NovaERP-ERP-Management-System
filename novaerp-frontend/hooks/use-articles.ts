@@ -12,10 +12,16 @@ import {
 } from "@/services/articles.service";
 import type { ArticleRequest, ArticleSupplierPriceRequest } from "@/types/models";
 
-export function useArticles(page = 0, size = 20) {
+export function useArticles(
+  page = 0,
+  size = 20,
+  search?: string,
+  categoryId?: number,
+  lowStock?: boolean,
+) {
   return useQuery({
-    queryKey: ["articles", page, size],
-    queryFn: () => getArticles(page, size),
+    queryKey: ["articles", page, size, search, categoryId, lowStock],
+    queryFn: () => getArticles(page, size, search, categoryId, lowStock),
   });
 }
 

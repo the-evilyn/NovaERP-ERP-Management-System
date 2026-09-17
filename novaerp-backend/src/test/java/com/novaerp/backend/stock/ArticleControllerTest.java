@@ -75,7 +75,7 @@ class ArticleControllerTest {
     }
 
     @Test
-    @DisplayName("list returns paginated articles")
+    @DisplayName("list returns paginated articles without filters")
     void testListArticles() {
         Pageable pageable = PageRequest.of(0, 20);
         Page<Article> page = new PageImpl<>(List.of(sampleArticle), pageable, 1);
@@ -85,6 +85,93 @@ class ArticleControllerTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).reference()).isEqualTo("ART-001");
+        verify(articleRepository).findAll(pageable);
+        verify(articleRepository, never()).searchArticles(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("list with search delegates to searchArticles with trimmed query")
+    void testListArticles_WithSearch() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Article> page = new PageImpl<>(List.of(sampleArticle), pageable, 1);
+        when(articleRepository.searchArticles("mouse", null, null, pageable)).thenReturn(page);
+
+        Page<ArticleResponse> result = articleController.list("  mouse  ", null, null, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).reference()).isEqualTo("ART-001");
+        verify(articleRepository).searchArticles("mouse", null, null, pageable);
+        verify(articleRepository, never()).findAll(pageable);
+    }
+
+    @Test
+    @DisplayName("list with blank search falls back to findAll")
+    void testListArticles_WithBlankSearch() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Article> page = new PageImpl<>(List.of(sampleArticle), pageable, 1);
+        when(articleRepository.findAll(pageable)).thenReturn(page);
+
+        Page<ArticleResponse> result = articleController.list("   ", null, null, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(articleRepository).findAll(pageable);
+        verify(articleRepository, never()).searchArticles(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("list with categoryId delegates to searchArticles")
+    void testListArticles_WithCategoryId() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Article> page = new PageImpl<>(List.of(sampleArticle), pageable, 1);
+        when(articleRepository.searchArticles(null, 1L, null, pageable)).thenReturn(page);
+
+        Page<ArticleResponse> result = articleController.list(null, 1L, null, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(articleRepository).searchArticles(null, 1L, null, pageable);
+        verify(articleRepository, never()).findAll(pageable);
+    }
+
+    @Test
+    @DisplayName("list with lowStock=true delegates to searchArticles")
+    void testListArticles_WithLowStockTrue() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Article> page = new PageImpl<>(List.of(sampleArticle), pageable, 1);
+        when(articleRepository.searchArticles(null, null, true, pageable)).thenReturn(page);
+
+        Page<ArticleResponse> result = articleController.list(null, null, true, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(articleRepository).searchArticles(null, null, true, pageable);
+        verify(articleRepository, never()).findAll(pageable);
+    }
+
+    @Test
+    @DisplayName("list with lowStock=false falls back to findAll when other filters are absent")
+    void testListArticles_WithLowStockFalse() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Article> page = new PageImpl<>(List.of(sampleArticle), pageable, 1);
+        when(articleRepository.findAll(pageable)).thenReturn(page);
+
+        Page<ArticleResponse> result = articleController.list(null, null, false, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(articleRepository).findAll(pageable);
+        verify(articleRepository, never()).searchArticles(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("list with combined filters delegates to searchArticles with all parameters")
+    void testListArticles_WithCombinedFilters() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Article> page = new PageImpl<>(List.of(sampleArticle), pageable, 1);
+        when(articleRepository.searchArticles("Logitech", 1L, true, pageable)).thenReturn(page);
+
+        Page<ArticleResponse> result = articleController.list(" Logitech ", 1L, true, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(articleRepository).searchArticles("Logitech", 1L, true, pageable);
+        verify(articleRepository, never()).findAll(pageable);
     }
 
     @Test
