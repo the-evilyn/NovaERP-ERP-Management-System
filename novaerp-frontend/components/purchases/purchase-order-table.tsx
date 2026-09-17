@@ -4,6 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AlertCircleIcon,
   CheckmarkCircle02Icon,
+  Download01Icon,
   EyeIcon,
   InboxDownloadIcon,
 } from "@hugeicons/core-free-icons";
@@ -13,7 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 import { useConfirmPurchaseOrder, usePurchaseOrders, useReceivePurchaseOrder } from "@/hooks/use-purchases";
+import { downloadPdfBlob } from "@/lib/pdf-download";
 import { formatCurrency, formatDate } from "@/lib/formatters";
+import { downloadPurchaseOrderPdf } from "@/services/purchases.service";
 import type { PurchaseOrderResponse, PurchaseOrderStatus } from "@/types/models";
 import { ViewPurchaseOrderDialog } from "@/components/purchases/view-purchase-order-dialog";
 
@@ -23,6 +26,7 @@ export function PurchaseOrderTable(): React.ReactElement {
   const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | undefined>(undefined);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrderResponse | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const { data, isLoading, isError } = usePurchaseOrders(page, 10, statusFilter);
   const confirmMutation = useConfirmPurchaseOrder();
@@ -53,6 +57,19 @@ export function PurchaseOrderTable(): React.ReactElement {
       await receiveMutation.mutateAsync(orderId);
     } catch {
       // Handled in dialog or toast
+    }
+  };
+
+  const handleDownloadPdf = async (orderId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDownloadingId(orderId);
+    try {
+      const { blob, filename } = await downloadPurchaseOrderPdf(orderId);
+      downloadPdfBlob(blob, filename);
+    } catch {
+      // Handled gracefully
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -221,6 +238,15 @@ export function PurchaseOrderTable(): React.ReactElement {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          disabled={downloadingId === order.id}
+                          onClick={(e) => handleDownloadPdf(order.id, e)}
+                          title="Télécharger PDF"
+                        >
+                          <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon-xs"

@@ -1,5 +1,6 @@
 package com.novaerp.backend.invoices;
 
+import com.novaerp.backend.common.pdf.DocumentPdfService;
 import com.novaerp.backend.invoices.dto.CustomerInvoiceRequest;
 import com.novaerp.backend.invoices.dto.CustomerInvoiceResponse;
 import com.novaerp.backend.user.User;
@@ -12,7 +13,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +28,7 @@ public class CustomerInvoiceController {
 
     private final CustomerInvoiceService customerInvoiceService;
     private final UserRepository userRepository;
+    private final DocumentPdfService documentPdfService;
 
     @GetMapping
     @Operation(summary = "List all customer invoices with optional status, client or sale order filtering")
@@ -40,6 +44,16 @@ public class CustomerInvoiceController {
     @Operation(summary = "Get a customer invoice with lines by ID")
     public CustomerInvoiceResponse getById(@PathVariable Long id) {
         return customerInvoiceService.getById(id);
+    }
+
+    @GetMapping("/{id}/pdf")
+    @Operation(summary = "Generate and download printable PDF for customer invoice")
+    public ResponseEntity<byte[]> getPdf(@PathVariable Long id) {
+        DocumentPdfService.PdfDocument pdf = documentPdfService.generateCustomerInvoicePdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + pdf.filename() + "\"")
+                .body(pdf.content());
     }
 
     @PostMapping

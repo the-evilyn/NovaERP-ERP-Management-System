@@ -4,6 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AlertCircleIcon,
   CheckmarkCircle02Icon,
+  Download01Icon,
   EyeIcon,
 } from "@hugeicons/core-free-icons";
 import type React from "react";
@@ -12,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 import { useConfirmSaleOrder, useSaleOrders } from "@/hooks/use-sales";
+import { downloadPdfBlob } from "@/lib/pdf-download";
 import { formatCurrency, formatDate } from "@/lib/formatters";
+import { downloadSaleOrderPdf } from "@/services/sales.service";
 import type { SaleOrderResponse, SaleOrderStatus } from "@/types/models";
 import { ViewSalesOrderDialog } from "@/components/sales/view-sales-order-dialog";
 
@@ -22,6 +25,7 @@ export function SalesOrderTable(): React.ReactElement {
   const [statusFilter, setStatusFilter] = useState<SaleOrderStatus | undefined>(undefined);
   const [selectedOrder, setSelectedOrder] = useState<SaleOrderResponse | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const { data, isLoading, isError } = useSaleOrders(page, 10, statusFilter);
   const confirmMutation = useConfirmSaleOrder();
@@ -42,6 +46,19 @@ export function SalesOrderTable(): React.ReactElement {
       await confirmMutation.mutateAsync(orderId);
     } catch {
       // Handled in dialog or error display
+    }
+  };
+
+  const handleDownloadPdf = async (orderId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDownloadingId(orderId);
+    try {
+      const { blob, filename } = await downloadSaleOrderPdf(orderId);
+      downloadPdfBlob(blob, filename);
+    } catch {
+      // Handled gracefully
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -221,6 +238,16 @@ export function SalesOrderTable(): React.ReactElement {
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        disabled={downloadingId === order.id}
+                        onClick={(e) => handleDownloadPdf(order.id, e)}
+                        title="Télécharger PDF"
+                      >
+                        <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

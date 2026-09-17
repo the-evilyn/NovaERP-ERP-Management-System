@@ -1,5 +1,6 @@
 package com.novaerp.backend.invoices;
 
+import com.novaerp.backend.common.pdf.DocumentPdfService;
 import com.novaerp.backend.invoices.dto.CustomerInvoiceItemRequest;
 import com.novaerp.backend.invoices.dto.CustomerInvoiceRequest;
 import com.novaerp.backend.invoices.dto.CustomerInvoiceResponse;
@@ -17,7 +18,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -39,6 +42,9 @@ class CustomerInvoiceControllerTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private DocumentPdfService documentPdfService;
 
     @InjectMocks
     private CustomerInvoiceController customerInvoiceController;
@@ -180,5 +186,22 @@ class CustomerInvoiceControllerTest {
 
         assertThat(result).isNotNull();
         verify(customerInvoiceService).cancel(eq(100L), any());
+    }
+
+    @Test
+    @DisplayName("getPdf() returns PDF byte array with inline Content-Disposition")
+    void testGetPdf() {
+        byte[] pdfBytes = "%PDF-1.4 sample".getBytes();
+        DocumentPdfService.PdfDocument pdfDoc = new DocumentPdfService.PdfDocument(pdfBytes, "Facture_FAC-2026-00001.pdf");
+        when(documentPdfService.generateCustomerInvoicePdf(100L)).thenReturn(pdfDoc);
+
+        ResponseEntity<byte[]> response = customerInvoiceController.getPdf(100L);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
+        assertThat(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .isEqualTo("inline; filename=\"Facture_FAC-2026-00001.pdf\"");
+        assertThat(response.getBody()).isEqualTo(pdfBytes);
+        verify(documentPdfService).generateCustomerInvoicePdf(100L);
     }
 }

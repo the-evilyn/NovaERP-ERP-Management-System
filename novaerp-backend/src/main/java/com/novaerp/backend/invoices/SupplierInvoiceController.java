@@ -1,5 +1,6 @@
 package com.novaerp.backend.invoices;
 
+import com.novaerp.backend.common.pdf.DocumentPdfService;
 import com.novaerp.backend.invoices.dto.SupplierInvoiceRequest;
 import com.novaerp.backend.invoices.dto.SupplierInvoiceResponse;
 import com.novaerp.backend.user.User;
@@ -12,7 +13,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +28,7 @@ public class SupplierInvoiceController {
 
     private final SupplierInvoiceService supplierInvoiceService;
     private final UserRepository userRepository;
+    private final DocumentPdfService documentPdfService;
 
     @GetMapping
     @Operation(summary = "List all supplier invoices with optional status, supplier or purchase order filtering")
@@ -40,6 +44,16 @@ public class SupplierInvoiceController {
     @Operation(summary = "Get a supplier invoice with lines by ID")
     public SupplierInvoiceResponse getById(@PathVariable Long id) {
         return supplierInvoiceService.getById(id);
+    }
+
+    @GetMapping("/{id}/pdf")
+    @Operation(summary = "Generate and download printable PDF for supplier invoice")
+    public ResponseEntity<byte[]> getPdf(@PathVariable Long id) {
+        DocumentPdfService.PdfDocument pdf = documentPdfService.generateSupplierInvoicePdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + pdf.filename() + "\"")
+                .body(pdf.content());
     }
 
     @PostMapping

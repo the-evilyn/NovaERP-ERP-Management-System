@@ -2,6 +2,7 @@
 // API service for Sales Orders (/api/sales/orders)
 
 import { api } from '@/lib/axios';
+import { extractPdfFilename } from '@/lib/pdf-download';
 import type {
   Page,
   SaleOrderRequest,
@@ -54,4 +55,10 @@ export async function confirmSaleOrder(id: number): Promise<SaleOrderResponse> {
 export async function cancelSaleOrder(id: number): Promise<SaleOrderResponse> {
   const { data } = await api.post<SaleOrderResponse>(`/sales/orders/${id}/cancel`);
   return data;
+}
+
+export async function downloadSaleOrderPdf(id: number): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get<Blob>(`/sales/orders/${id}/pdf`, { responseType: "blob" });
+  const filename = extractPdfFilename(response.headers["content-disposition"], `Commande_Client_CMD-${id}.pdf`);
+  return { blob: response.data, filename };
 }

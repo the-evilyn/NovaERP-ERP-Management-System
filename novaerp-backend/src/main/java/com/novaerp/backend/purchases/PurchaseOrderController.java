@@ -1,5 +1,6 @@
 package com.novaerp.backend.purchases;
 
+import com.novaerp.backend.common.pdf.DocumentPdfService;
 import com.novaerp.backend.purchases.dto.PurchaseOrderRequest;
 import com.novaerp.backend.purchases.dto.PurchaseOrderResponse;
 import com.novaerp.backend.user.User;
@@ -12,7 +13,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +28,7 @@ public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;
     private final UserRepository userRepository;
+    private final DocumentPdfService documentPdfService;
 
     @GetMapping
     @Operation(summary = "List all purchase orders with optional status or supplier filtering")
@@ -39,6 +43,16 @@ public class PurchaseOrderController {
     @Operation(summary = "Get a purchase order with lines by ID")
     public PurchaseOrderResponse getById(@PathVariable Long id) {
         return purchaseOrderService.getById(id);
+    }
+
+    @GetMapping("/{id}/pdf")
+    @Operation(summary = "Generate and download printable PDF for purchase order")
+    public ResponseEntity<byte[]> getPdf(@PathVariable Long id) {
+        DocumentPdfService.PdfDocument pdf = documentPdfService.generatePurchaseOrderPdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + pdf.filename() + "\"")
+                .body(pdf.content());
     }
 
     @PostMapping

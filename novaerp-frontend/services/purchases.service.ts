@@ -2,6 +2,7 @@
 // API service for Purchase Orders (/api/purchases/orders)
 
 import { api } from '@/lib/axios';
+import { extractPdfFilename } from '@/lib/pdf-download';
 import type {
   Page,
   PurchaseOrderRequest,
@@ -59,4 +60,10 @@ export async function receivePurchaseOrder(id: number): Promise<PurchaseOrderRes
 export async function cancelPurchaseOrder(id: number): Promise<PurchaseOrderResponse> {
   const { data } = await api.post<PurchaseOrderResponse>(`/purchases/orders/${id}/cancel`);
   return data;
+}
+
+export async function downloadPurchaseOrderPdf(id: number): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get<Blob>(`/purchases/orders/${id}/pdf`, { responseType: "blob" });
+  const filename = extractPdfFilename(response.headers["content-disposition"], `Bon_Commande_BC-${id}.pdf`);
+  return { blob: response.data, filename };
 }

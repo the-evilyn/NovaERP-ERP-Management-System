@@ -1,4 +1,5 @@
 import { api } from "@/lib/axios";
+import { extractPdfFilename } from "@/lib/pdf-download";
 import type { CustomerInvoiceRequest, CustomerInvoiceResponse, CustomerInvoiceStatus, Page, SupplierInvoiceRequest, SupplierInvoiceResponse, SupplierInvoiceStatus } from "@/types/models";
 
 export async function getCustomerInvoices(page = 0, size = 10, status?: CustomerInvoiceStatus, clientId?: number, saleOrderId?: number): Promise<Page<CustomerInvoiceResponse>> {
@@ -10,6 +11,11 @@ export async function createCustomerInvoice(payload: CustomerInvoiceRequest): Pr
 export async function createCustomerInvoiceFromSaleOrder(saleOrderId: number): Promise<CustomerInvoiceResponse> { const { data } = await api.post<CustomerInvoiceResponse>(`/invoices/customers/from-sale-order/${saleOrderId}`); return data; }
 export async function issueCustomerInvoice(id: number): Promise<CustomerInvoiceResponse> { const { data } = await api.post<CustomerInvoiceResponse>(`/invoices/customers/${id}/issue`); return data; }
 export async function cancelCustomerInvoice(id: number): Promise<CustomerInvoiceResponse> { const { data } = await api.post<CustomerInvoiceResponse>(`/invoices/customers/${id}/cancel`); return data; }
+export async function downloadCustomerInvoicePdf(id: number): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get<Blob>(`/invoices/customers/${id}/pdf`, { responseType: "blob" });
+  const filename = extractPdfFilename(response.headers["content-disposition"], `Facture_FAC-${id}.pdf`);
+  return { blob: response.data, filename };
+}
 
 export async function getSupplierInvoices(page = 0, size = 10, status?: SupplierInvoiceStatus, supplierId?: number, purchaseOrderId?: number): Promise<Page<SupplierInvoiceResponse>> {
   const { data } = await api.get<Page<SupplierInvoiceResponse>>("/invoices/suppliers", { params: { page, size, status, supplierId, purchaseOrderId } });
@@ -20,3 +26,8 @@ export async function createSupplierInvoice(payload: SupplierInvoiceRequest): Pr
 export async function createSupplierInvoiceFromPurchaseOrder(purchaseOrderId: number): Promise<SupplierInvoiceResponse> { const { data } = await api.post<SupplierInvoiceResponse>(`/invoices/suppliers/from-purchase-order/${purchaseOrderId}`); return data; }
 export async function receiveSupplierInvoice(id: number): Promise<SupplierInvoiceResponse> { const { data } = await api.post<SupplierInvoiceResponse>(`/invoices/suppliers/${id}/receive`); return data; }
 export async function cancelSupplierInvoice(id: number): Promise<SupplierInvoiceResponse> { const { data } = await api.post<SupplierInvoiceResponse>(`/invoices/suppliers/${id}/cancel`); return data; }
+export async function downloadSupplierInvoicePdf(id: number): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get<Blob>(`/invoices/suppliers/${id}/pdf`, { responseType: "blob" });
+  const filename = extractPdfFilename(response.headers["content-disposition"], `Facture_Fournisseur_FAF-${id}.pdf`);
+  return { blob: response.data, filename };
+}

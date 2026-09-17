@@ -1,5 +1,6 @@
 package com.novaerp.backend.invoices;
 
+import com.novaerp.backend.common.pdf.DocumentPdfService;
 import com.novaerp.backend.invoices.dto.SupplierInvoiceItemRequest;
 import com.novaerp.backend.invoices.dto.SupplierInvoiceRequest;
 import com.novaerp.backend.invoices.dto.SupplierInvoiceResponse;
@@ -17,7 +18,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -39,6 +42,9 @@ class SupplierInvoiceControllerTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private DocumentPdfService documentPdfService;
 
     @InjectMocks
     private SupplierInvoiceController supplierInvoiceController;
@@ -179,5 +185,22 @@ class SupplierInvoiceControllerTest {
 
         assertThat(result).isNotNull();
         verify(supplierInvoiceService).cancel(eq(100L), any());
+    }
+
+    @Test
+    @DisplayName("getPdf() returns PDF byte array with inline Content-Disposition")
+    void testGetPdf() {
+        byte[] pdfBytes = "%PDF-1.4 sample".getBytes();
+        DocumentPdfService.PdfDocument pdfDoc = new DocumentPdfService.PdfDocument(pdfBytes, "Facture_Fournisseur_FAF-2026-00001.pdf");
+        when(documentPdfService.generateSupplierInvoicePdf(100L)).thenReturn(pdfDoc);
+
+        ResponseEntity<byte[]> response = supplierInvoiceController.getPdf(100L);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
+        assertThat(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .isEqualTo("inline; filename=\"Facture_Fournisseur_FAF-2026-00001.pdf\"");
+        assertThat(response.getBody()).isEqualTo(pdfBytes);
+        verify(documentPdfService).generateSupplierInvoicePdf(100L);
     }
 }

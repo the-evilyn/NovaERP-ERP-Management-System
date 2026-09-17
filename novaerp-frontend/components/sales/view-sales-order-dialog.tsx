@@ -5,6 +5,7 @@ import {
   AlertCircleIcon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
+  Download01Icon,
 } from "@hugeicons/core-free-icons";
 import type React from "react";
 import { useState } from "react";
@@ -23,7 +24,9 @@ import { useCustomerInvoices, useCreateCustomerInvoiceFromSaleOrder } from "@/ho
 import { useAuth } from "@/providers/auth-provider";
 import { useCancelSaleOrder, useConfirmSaleOrder } from "@/hooks/use-sales";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { downloadPdfBlob } from "@/lib/pdf-download";
 import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/formatters";
+import { downloadSaleOrderPdf } from "@/services/sales.service";
 import type { SaleOrderResponse, SaleOrderStatus } from "@/types/models";
 
 interface ViewSalesOrderDialogProps {
@@ -40,6 +43,7 @@ export function ViewSalesOrderDialog({
   const { user } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const confirmMutation = useConfirmSaleOrder();
   const cancelMutation = useCancelSaleOrder();
@@ -52,6 +56,20 @@ export function ViewSalesOrderDialog({
 
   const existingCustomerInvoices = customerInvoicesQuery.data?.content ?? [];
   const existingCustomerInvoiceCount = existingCustomerInvoices.length;
+
+  const handleDownloadPdf = async () => {
+    if (!order) return;
+    setPdfLoading(true);
+    setErrorMsg(null);
+    try {
+      const { blob, filename } = await downloadSaleOrderPdf(order.id);
+      downloadPdfBlob(blob, filename);
+    } catch (err) {
+      setErrorMsg(getApiErrorMessage(err));
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: SaleOrderStatus) => {
     switch (status) {
@@ -301,6 +319,16 @@ export function ViewSalesOrderDialog({
                     : "Créer une facture client"}
               </Button>
             )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading}
+              className="gap-1.5"
+            >
+              <HugeiconsIcon icon={Download01Icon} className="size-4" />
+              {pdfLoading ? "Téléchargement..." : "Télécharger PDF"}
+            </Button>
             <Button
               type="button"
               variant="outline"

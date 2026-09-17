@@ -1,5 +1,6 @@
 package com.novaerp.backend.sales;
 
+import com.novaerp.backend.common.pdf.DocumentPdfService;
 import com.novaerp.backend.sales.dto.SaleOrderRequest;
 import com.novaerp.backend.sales.dto.SaleOrderResponse;
 import com.novaerp.backend.user.User;
@@ -12,7 +13,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +28,7 @@ public class SaleOrderController {
 
     private final SaleOrderService saleOrderService;
     private final UserRepository userRepository;
+    private final DocumentPdfService documentPdfService;
 
     @GetMapping
     @Operation(summary = "List all sale orders with optional status or client filtering")
@@ -39,6 +43,16 @@ public class SaleOrderController {
     @Operation(summary = "Get a sale order with lines by ID")
     public SaleOrderResponse getById(@PathVariable Long id) {
         return saleOrderService.getById(id);
+    }
+
+    @GetMapping("/{id}/pdf")
+    @Operation(summary = "Generate and download printable PDF for customer sale order")
+    public ResponseEntity<byte[]> getPdf(@PathVariable Long id) {
+        DocumentPdfService.PdfDocument pdf = documentPdfService.generateSaleOrderPdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + pdf.filename() + "\"")
+                .body(pdf.content());
     }
 
     @PostMapping
