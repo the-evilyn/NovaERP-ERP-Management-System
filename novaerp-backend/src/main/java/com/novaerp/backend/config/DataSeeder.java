@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,9 @@ public class DataSeeder implements CommandLineRunner {
     private final ArticleRepository articleRepository;
     private final ArticleSupplierPriceRepository articleSupplierPriceRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final WarehouseRepository warehouseRepository;
+    private final WarehouseLocationRepository warehouseLocationRepository;
+    private final WarehouseStockRepository warehouseStockRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -52,6 +56,7 @@ public class DataSeeder implements CommandLineRunner {
         Map<String, Unit> units = seedUnits();
         List<Supplier> suppliers = seedSuppliers();
         List<Article> articles = seedArticles(categories, units);
+        seedWarehouseStocks(articles);
         seedArticleSupplierPrices(articles, suppliers);
         seedStockMovements(articles, users);
 
@@ -324,9 +329,61 @@ public class DataSeeder implements CommandLineRunner {
                 .build();
     }
 
+    private Warehouse resolveDefaultWarehouse() {
+        return warehouseRepository.findByCode("WH-MAIN")
+                .or(warehouseRepository::findByIsDefaultTrue)
+                .orElse(null);
+    }
+
+    private WarehouseLocation resolveDefaultLocation(Warehouse warehouse) {
+        if (warehouse == null) {
+            return null;
+        }
+        return warehouseLocationRepository.findByWarehouseIdAndCode(warehouse.getId(), "LOC-GEN")
+                .or(() -> warehouseLocationRepository.findByWarehouseIdAndIsDefaultTrue(warehouse.getId()))
+                .orElse(null);
+    }
+
+    private void seedWarehouseStocks(List<Article> articles) {
+        Warehouse warehouse = resolveDefaultWarehouse();
+        if (warehouse == null) {
+            log.warn("Default warehouse WH-MAIN not found; skipping warehouse_stocks seeding");
+            return;
+        }
+
+        WarehouseLocation location = resolveDefaultLocation(warehouse);
+        if (location == null) {
+            log.warn("Default location LOC-GEN not found for warehouse {}; skipping warehouse_stocks seeding", warehouse.getCode());
+            return;
+        }
+
+        List<WarehouseStock> stocksToSave = new ArrayList<>();
+        for (Article article : articles) {
+            if (warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(
+                    article.getId(), warehouse.getId(), location.getId()).isEmpty()) {
+                stocksToSave.add(WarehouseStock.builder()
+                        .article(article)
+                        .warehouse(warehouse)
+                        .location(location)
+                        .quantity(article.getStockQuantity())
+                        .minQuantity(article.getMinStockQuantity())
+                        .build());
+            }
+        }
+
+        if (!stocksToSave.isEmpty()) {
+            warehouseStockRepository.saveAll(stocksToSave);
+            log.info("Seeded {} warehouse_stocks records for warehouse '{}' / location '{}'",
+                    stocksToSave.size(), warehouse.getCode(), location.getCode());
+        }
+    }
+
     private void seedStockMovements(List<Article> articles, List<User> users) {
         User admin = users.get(0);
         User sara = users.get(1);
+
+        Warehouse warehouse = resolveDefaultWarehouse();
+        WarehouseLocation location = resolveDefaultLocation(warehouse);
 
         List<StockMovement> movements = List.of(
                 StockMovement.builder()
@@ -335,6 +392,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("200.0000"))
                         .reference("PO-2026-0001")
                         .note("Initial stock intake")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(admin)
                         .build(),
                 StockMovement.builder()
@@ -343,6 +402,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("50.0000"))
                         .reference("SO-2026-0010")
                         .note("Customer order fulfillment")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(sara)
                         .build(),
                 StockMovement.builder()
@@ -351,6 +412,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("80.0000"))
                         .reference("PO-2026-0002")
                         .note("Initial stock intake")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(admin)
                         .build(),
                 StockMovement.builder()
@@ -359,6 +422,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("20.0000"))
                         .reference("SO-2026-0011")
                         .note("Customer order fulfillment")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(sara)
                         .build(),
                 StockMovement.builder()
@@ -367,6 +432,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("20.0000"))
                         .reference("PO-2026-0003")
                         .note("Initial stock intake")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(admin)
                         .build(),
                 StockMovement.builder()
@@ -375,6 +442,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("5.0000"))
                         .reference("SO-2026-0012")
                         .note("Installed at client site")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(sara)
                         .build(),
                 StockMovement.builder()
@@ -383,6 +452,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("350.0000"))
                         .reference("PO-2026-0004")
                         .note("Bulk office supplies restock")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(admin)
                         .build(),
                 StockMovement.builder()
@@ -391,6 +462,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("-50.0000"))
                         .reference("ADJ-2026-0001")
                         .note("Inventory count correction")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(admin)
                         .build(),
                 StockMovement.builder()
@@ -399,6 +472,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("30.0000"))
                         .reference("PO-2026-0005")
                         .note("Initial stock intake")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(admin)
                         .build(),
                 StockMovement.builder()
@@ -407,6 +482,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("5.0000"))
                         .reference("SO-2026-0013")
                         .note("Customer order fulfillment")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(sara)
                         .build(),
                 StockMovement.builder()
@@ -415,6 +492,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("10.0000"))
                         .reference("PO-2026-0006")
                         .note("Initial stock intake")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(admin)
                         .build(),
                 StockMovement.builder()
@@ -423,6 +502,8 @@ public class DataSeeder implements CommandLineRunner {
                         .quantity(new BigDecimal("2.0000"))
                         .reference("SO-2026-0014")
                         .note("Customer order fulfillment")
+                        .warehouse(warehouse)
+                        .location(location)
                         .createdBy(sara)
                         .build()
         );
