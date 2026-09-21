@@ -1,7 +1,29 @@
+"use client";
+
 import type React from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ImportExportCard } from "@/components/import-export/import-export-card";
+import { useAuth } from "@/providers/auth-provider";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ImportExportPage(): React.ReactElement {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user && user.role !== "ADMIN") {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || (user && user.role !== "ADMIN")) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Spinner className="size-6 text-muted-foreground" />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm">

@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuth } from "@/providers/auth-provider";
 import { QuickReorderDialog } from "@/components/decision/quick-reorder-dialog";
 import { useDashboardStats } from "@/hooks/use-dashboard";
 import { useRecommendations } from "@/hooks/use-decision";
@@ -105,6 +106,9 @@ function StatItem({
 }
 
 export default function DashboardPage(): React.ReactElement {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<ReorderRecommendationResponse | null>(null);
 
@@ -119,13 +123,42 @@ export default function DashboardPage(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Role-Specific Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isAdmin ? "Tableau de bord Administrateur" : "Tableau de bord Opérateur"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isAdmin
+              ? "Supervision globale de l'activité, valorisation du stock et pilotage des réapprovisionnements."
+              : "Suivi opérationnel des stocks, alertes de réapprovisionnement et traçabilité des mouvements."}
+          </p>
+        </div>
+        <Badge variant={isAdmin ? "default" : "secondary"} className="self-start sm:self-auto">
+          {isAdmin ? "Espace Administrateur" : "Espace Opérateur de Stock"}
+        </Badge>
+      </div>
+
       {/* Inventory Health KPIs */}
       <div className="flex flex-col gap-8 rounded-2xl border bg-card p-6 sm:flex-row sm:justify-between sm:gap-0 sm:p-10">
-        <StatItem
-          title="Valeur totale du stock"
-          value={formatCurrency(stats?.totalValue ?? 0)}
-          loading={isStatsPending}
-        />
+        {isAdmin ? (
+          <StatItem
+            title="Valeur totale du stock"
+            value={formatCurrency(stats?.totalValue ?? 0)}
+            loading={isStatsPending}
+          />
+        ) : (
+          <StatItem
+            title="Articles en alerte"
+            value={String(
+              (stats?.criticalStock ?? 0) +
+                (stats?.lowStock ?? 0) +
+                (stats?.outOfStock ?? 0)
+            )}
+            loading={isStatsPending}
+          />
+        )}
         <StatItem
           title="Stock critique"
           value={String(stats?.criticalStock ?? 0)}
@@ -162,8 +195,8 @@ export default function DashboardPage(): React.ReactElement {
           loading={isStatsPending}
         />
         <StatItem
-          title="Clients"
-          value={String(stats?.totalClients ?? 0)}
+          title={isAdmin ? "Clients" : "Quantité totale"}
+          value={String(isAdmin ? (stats?.totalClients ?? 0) : (stats?.totalQuantity ?? 0))}
           loading={isStatsPending}
           last
         />
@@ -198,15 +231,15 @@ export default function DashboardPage(): React.ReactElement {
               <TableHead>Niveau de risque</TableHead>
               <TableHead className="text-right">Qté suggérée</TableHead>
               <TableHead>Fournisseur recommandé</TableHead>
-              <TableHead className="text-right">Budget estimé</TableHead>
-              <TableHead className="text-right">Action</TableHead>
+              {isAdmin && <TableHead className="text-right">Budget estimé</TableHead>}
+              {isAdmin && <TableHead className="text-right">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isRecsPending &&
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={isAdmin ? 7 : 5}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
@@ -214,7 +247,7 @@ export default function DashboardPage(): React.ReactElement {
 
             {!isRecsPending && recommendationsPage?.content.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="h-20 text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 7 : 5} className="h-20 text-center text-muted-foreground">
                   Aucun article en rupture ou critique détecté. Le stock est optimal.
                 </TableCell>
               </TableRow>
@@ -249,87 +282,93 @@ export default function DashboardPage(): React.ReactElement {
                     </span>
                   )}
                 </TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatCurrency(rec.estimatedBudget)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedRecommendation(rec)}
-                  >
-                    <HugeiconsIcon icon={Exchange02Icon} strokeWidth={2} />
-                    Commander
-                  </Button>
-                </TableCell>
+                {isAdmin && (
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(rec.estimatedBudget)}
+                  </TableCell>
+                )}
+                {isAdmin && (
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedRecommendation(rec)}
+                    >
+                      <HugeiconsIcon icon={Exchange02Icon} strokeWidth={2} />
+                      Commander
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardFrame>
 
-      {/* Category Chart & Top Articles */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CardFrame>
-          <CardFrameHeader>
-            <CardFrameTitle>Valeur du stock par catégorie</CardFrameTitle>
-            <CardFrameDescription>
-              Agrégation globale sur les 5 604 articles du catalogue
-            </CardFrameDescription>
-          </CardFrameHeader>
-          <div className="px-6 pb-6">
-            {isStatsPending ? (
-              <div className="flex flex-col gap-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-8 w-full" />
-                ))}
-              </div>
-            ) : (
-              <StockValueByCategoryChart data={categoryValues} />
-            )}
-          </div>
-        </CardFrame>
+      {/* Category Chart & Top Articles (ADMIN Financial Valuation Only) */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <CardFrame>
+            <CardFrameHeader>
+              <CardFrameTitle>Valeur du stock par catégorie</CardFrameTitle>
+              <CardFrameDescription>
+                Agrégation globale sur les 5 604 articles du catalogue
+              </CardFrameDescription>
+            </CardFrameHeader>
+            <div className="px-6 pb-6">
+              {isStatsPending ? (
+                <div className="flex flex-col gap-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <StockValueByCategoryChart data={categoryValues} />
+              )}
+            </div>
+          </CardFrame>
 
-        <CardFrame>
-          <CardFrameHeader>
-            <CardFrameTitle>Meilleurs articles</CardFrameTitle>
-            <CardFrameDescription>Par valeur de stock totale</CardFrameDescription>
-          </CardFrameHeader>
-          <Table variant="card">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Article</TableHead>
-                <TableHead className="text-right">Valeur</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isStatsPending &&
-                Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={2}>
-                      <Skeleton className="h-5 w-full" />
+          <CardFrame>
+            <CardFrameHeader>
+              <CardFrameTitle>Meilleurs articles</CardFrameTitle>
+              <CardFrameDescription>Par valeur de stock totale</CardFrameDescription>
+            </CardFrameHeader>
+            <Table variant="card">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Article</TableHead>
+                  <TableHead className="text-right">Valeur</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isStatsPending &&
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell colSpan={2}>
+                        <Skeleton className="h-5 w-full" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                {topArticles.map((article) => (
+                  <TableRow key={article.id}>
+                    <TableCell className="font-medium">
+                      {article.designation}
+                      <span className="ml-1.5 text-muted-foreground text-xs">
+                        {article.reference}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="success">
+                        {formatCurrency(article.stockValue)}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
-              {topArticles.map((article) => (
-                <TableRow key={article.id}>
-                  <TableCell className="font-medium">
-                    {article.designation}
-                    <span className="ml-1.5 text-muted-foreground text-xs">
-                      {article.reference}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="success">
-                      {formatCurrency(article.stockValue)}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardFrame>
-      </div>
+              </TableBody>
+            </Table>
+          </CardFrame>
+        </div>
+      )}
 
       {/* Recent Movements */}
       <CardFrame className="w-full">
@@ -383,14 +422,16 @@ export default function DashboardPage(): React.ReactElement {
         </Table>
       </CardFrame>
 
-      {/* Modal for Quick Reorder from Dashboard */}
-      <QuickReorderDialog
-        recommendation={selectedRecommendation}
-        open={selectedRecommendation !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedRecommendation(null);
-        }}
-      />
+      {/* Modal for Quick Reorder from Dashboard (ADMIN only) */}
+      {isAdmin && (
+        <QuickReorderDialog
+          recommendation={selectedRecommendation}
+          open={selectedRecommendation !== null}
+          onOpenChange={(open) => {
+            if (!open) setSelectedRecommendation(null);
+          }}
+        />
+      )}
     </div>
   );
 }

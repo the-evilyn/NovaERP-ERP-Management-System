@@ -5,6 +5,7 @@ import axios from 'axios';
 import { deleteCookie, getCookie } from '@/lib/cookies';
 
 export const TOKEN_COOKIE_NAME = 'novaerp_token';
+export const ROLE_COOKIE_NAME = 'novaerp_role';
 export const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24; // matches backend JWT_EXPIRATION_MS default (24h)
 
 export const api = axios.create({
@@ -33,6 +34,7 @@ api.interceptors.response.use(
       !window.location.pathname.startsWith('/login')
     ) {
       deleteCookie(TOKEN_COOKIE_NAME);
+      deleteCookie(ROLE_COOKIE_NAME);
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = '/login';
     }

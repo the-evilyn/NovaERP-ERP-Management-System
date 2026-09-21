@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { TOKEN_COOKIE_NAME, TOKEN_MAX_AGE_SECONDS } from "@/lib/axios";
+import { ROLE_COOKIE_NAME, TOKEN_COOKIE_NAME, TOKEN_MAX_AGE_SECONDS } from "@/lib/axios";
 import { deleteCookie, getCookie, setCookie } from "@/lib/cookies";
 import {
   getMe,
@@ -34,6 +34,7 @@ export function AuthProvider({
   useEffect(() => {
     const token = getCookie(TOKEN_COOKIE_NAME);
     if (!token) {
+      deleteCookie(ROLE_COOKIE_NAME);
       queueMicrotask(() => {
         setIsLoading(false);
       });
@@ -41,9 +42,13 @@ export function AuthProvider({
     }
 
     getMe()
-      .then(setUser)
+      .then((currentUser) => {
+        setUser(currentUser);
+        setCookie(ROLE_COOKIE_NAME, currentUser.role, TOKEN_MAX_AGE_SECONDS);
+      })
       .catch(() => {
         deleteCookie(TOKEN_COOKIE_NAME);
+        deleteCookie(ROLE_COOKIE_NAME);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -51,6 +56,7 @@ export function AuthProvider({
   const login = useCallback(async (data: LoginRequest) => {
     const res = await loginRequest(data);
     setCookie(TOKEN_COOKIE_NAME, res.token, TOKEN_MAX_AGE_SECONDS);
+    setCookie(ROLE_COOKIE_NAME, res.role, TOKEN_MAX_AGE_SECONDS);
     setUser({
       id: res.userId,
       fullName: res.fullName,
@@ -62,6 +68,7 @@ export function AuthProvider({
   const register = useCallback(async (data: RegisterRequest) => {
     const res = await registerRequest(data);
     setCookie(TOKEN_COOKIE_NAME, res.token, TOKEN_MAX_AGE_SECONDS);
+    setCookie(ROLE_COOKIE_NAME, res.role, TOKEN_MAX_AGE_SECONDS);
     setUser({
       id: res.userId,
       fullName: res.fullName,
@@ -72,6 +79,7 @@ export function AuthProvider({
 
   const logout = useCallback(() => {
     deleteCookie(TOKEN_COOKIE_NAME);
+    deleteCookie(ROLE_COOKIE_NAME);
     router.push("/login");
     // Deferred so the popup/menu that triggered logout finishes closing
     // before the sidebar (and the menu itself) unmounts.

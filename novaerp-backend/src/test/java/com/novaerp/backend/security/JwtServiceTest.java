@@ -36,13 +36,29 @@ class JwtServiceTest {
     }
 
     @Test
-    @DisplayName("generateToken creates a valid JWT from which username can be extracted")
+    @DisplayName("generateToken creates a valid JWT from which username and role can be extracted")
     void testGenerateTokenAndExtractUsername() {
         String token = jwtService.generateToken(testUser);
 
         assertThat(token).isNotBlank();
         String extractedUsername = jwtService.extractUsername(token);
         assertThat(extractedUsername).isEqualTo("user@novaerp.local");
+        String extractedRole = jwtService.extractRole(token);
+        assertThat(extractedRole).isEqualTo("USER");
+    }
+
+    @Test
+    @DisplayName("generateToken preserves ADMIN role in token")
+    void testGenerateTokenWithAdminRole() {
+        User adminUser = User.builder()
+                .id(2L)
+                .email("admin@novaerp.local")
+                .fullName("Admin User")
+                .role(Role.ADMIN)
+                .build();
+
+        String token = jwtService.generateToken(adminUser);
+        assertThat(jwtService.extractRole(token)).isEqualTo("ADMIN");
     }
 
     @Test

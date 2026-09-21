@@ -59,6 +59,16 @@ const navMain: NavMainItem[] = [
   },
 ];
 
+const ADMIN_ONLY_ROUTES = [
+  "/sales",
+  "/purchases",
+  "/invoices",
+  "/payments",
+  "/warehouses",
+  "/stock/transfers",
+  "/import-export",
+];
+
 export function AppSidebar(
   props: React.ComponentProps<typeof Sidebar>,
 ): React.ReactElement {
@@ -66,7 +76,7 @@ export function AppSidebar(
   const isAdmin = user?.role === "ADMIN";
 
   const visibleNavItems = navMain.filter((item) => {
-    if (item.url === "/import-export") {
+    if (ADMIN_ONLY_ROUTES.includes(item.url)) {
       return isAdmin;
     }
     return true;

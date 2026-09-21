@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import PaginationTable from "@/components/shared/pagination-table";
+import { useAuth } from "@/providers/auth-provider";
 import { QuickReorderDialog } from "@/components/decision/quick-reorder-dialog";
 import { useRecommendations, useRiskSummary } from "@/hooks/use-decision";
 import { formatCurrency } from "@/lib/formatters";
@@ -54,6 +55,9 @@ function RiskBadge({
 }
 
 export function DecisionTable(): React.ReactElement {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [activeTab, setActiveTab] = useState<RiskLevel | "ALL">("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
@@ -121,7 +125,7 @@ export function DecisionTable(): React.ReactElement {
         <div className="rounded-2xl border bg-card p-5">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground text-sm">
-              Budget total réapprovisionnement
+              {isAdmin ? "Budget total réapprovisionnement" : "Articles en stock critique"}
             </span>
             <div className="rounded-lg bg-emerald-100 p-2 text-emerald-600 dark:bg-emerald-950/40">
               <HugeiconsIcon icon={ShoppingCart01Icon} size={20} strokeWidth={2} />
@@ -130,12 +134,16 @@ export function DecisionTable(): React.ReactElement {
           <div className="mt-3 font-heading font-bold text-3xl text-emerald-600 dark:text-emerald-400">
             {isSummaryPending ? (
               <Skeleton className="h-9 w-32" />
-            ) : (
+            ) : isAdmin ? (
               formatCurrency(summary?.totalEstimatedReorderBudget ?? 0)
+            ) : (
+              summary?.criticalCount ?? 0
             )}
           </div>
           <p className="mt-1 text-muted-foreground text-xs">
-            Budget estimé pour reconstituer les stocks tampon (+50%)
+            {isAdmin
+              ? "Budget estimé pour reconstituer les stocks tampon (+50%)"
+              : "Articles prioritaires nécessitant une commande rapide"}
           </p>
         </div>
 
@@ -213,15 +221,15 @@ export function DecisionTable(): React.ReactElement {
               <TableHead>Niveau de risque</TableHead>
               <TableHead className="text-right">Qté suggérée</TableHead>
               <TableHead>Fournisseur recommandé</TableHead>
-              <TableHead className="text-right">Budget estimé</TableHead>
-              <TableHead className="text-right">Action</TableHead>
+              {isAdmin && <TableHead className="text-right">Budget estimé</TableHead>}
+              {isAdmin && <TableHead className="text-right">Action</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isPending &&
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={isAdmin ? 7 : 5}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
@@ -229,7 +237,7 @@ export function DecisionTable(): React.ReactElement {
 
             {!isPending && data?.content.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 7 : 5} className="h-32 text-center text-muted-foreground">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <HugeiconsIcon
                       icon={CheckmarkCircle02Icon}
@@ -292,20 +300,24 @@ export function DecisionTable(): React.ReactElement {
                   </div>
                 </TableCell>
 
-                <TableCell className="text-right font-semibold">
-                  {formatCurrency(rec.estimatedBudget)}
-                </TableCell>
+                {isAdmin && (
+                  <TableCell className="text-right font-semibold">
+                    {formatCurrency(rec.estimatedBudget)}
+                  </TableCell>
+                )}
 
-                <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedRecommendation(rec)}
-                  >
-                    <HugeiconsIcon icon={Exchange02Icon} strokeWidth={2} />
-                    Commander
-                  </Button>
-                </TableCell>
+                {isAdmin && (
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedRecommendation(rec)}
+                    >
+                      <HugeiconsIcon icon={Exchange02Icon} strokeWidth={2} />
+                      Commander
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
@@ -325,14 +337,16 @@ export function DecisionTable(): React.ReactElement {
         )}
       </CardFrame>
 
-      {/* Quick Reorder Modal */}
-      <QuickReorderDialog
-        recommendation={selectedRecommendation}
-        open={selectedRecommendation !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedRecommendation(null);
-        }}
-      />
+      {/* Quick Reorder Modal (ADMIN only) */}
+      {isAdmin && (
+        <QuickReorderDialog
+          recommendation={selectedRecommendation}
+          open={selectedRecommendation !== null}
+          onOpenChange={(open) => {
+            if (!open) setSelectedRecommendation(null);
+          }}
+        />
+      )}
     </div>
   );
 }

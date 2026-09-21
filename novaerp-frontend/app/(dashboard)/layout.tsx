@@ -1,24 +1,43 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { SiteHeader } from '@/components/layout/site-header';
 import { Spinner } from '@/components/ui/spinner';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useAuth } from '@/providers/auth-provider';
 
+const ADMIN_ONLY_ROUTES = [
+  '/import-export',
+  '/sales',
+  '/purchases',
+  '/invoices',
+  '/payments',
+  '/warehouses',
+  '/stock/transfers',
+];
+
 export default function DashboardLayout({ children }: LayoutProps<'/'>) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isLoading } = useAuth();
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace('/login');
-    }
-  }, [isLoading, user, router]);
+  const isAdminOnlyRoute = ADMIN_ONLY_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 
-  if (isLoading || !user) {
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        router.replace('/login');
+      } else if (user.role !== 'ADMIN' && isAdminOnlyRoute) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [isLoading, user, router, isAdminOnlyRoute]);
+
+  if (isLoading || !user || (user.role !== 'ADMIN' && isAdminOnlyRoute)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner className="size-6 text-muted-foreground" />
