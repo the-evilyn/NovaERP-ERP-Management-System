@@ -58,3 +58,14 @@ export async function updateClient(
 export async function deleteClient(id: number): Promise<void> {
   await api.delete(`/clients/${id}`);
 }
+
+export async function exportClientsCsv(search?: string): Promise<void> {
+  const { data } = await api.get<Blob>('/clients/export', {
+    params: {
+      search: search && search.trim() ? search.trim() : undefined,
+    },
+    responseType: 'blob',
+  });
+  const { downloadCsvBlob } = await import('@/lib/csv');
+  downloadCsvBlob(data, 'clients.csv');
+}

@@ -6,6 +6,7 @@ import {
   Alert02Icon,
   CheckmarkBadge01Icon,
   Delete02Icon,
+  Download01Icon,
   MoreVerticalIcon,
   PencilEdit01Icon,
   Upload01Icon,
@@ -38,6 +39,9 @@ import PaginationTable from "@/components/shared/pagination-table";
 import { CreateProductDialog } from "@/components/products/create-product-dialog";
 import { EditProductDialog } from "@/components/products/edit-product-dialog";
 import { parseCsv } from "@/lib/csv";
+import { toastManager } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { exportArticlesCsv } from "@/services/articles.service";
 import {
   useCreateProducts,
   useDeleteProducts,
@@ -91,6 +95,7 @@ export function ProductTable(): React.ReactElement {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isPending } = useProducts(currentPage - 1, pageSize);
@@ -100,6 +105,26 @@ export function ProductTable(): React.ReactElement {
   );
   const deleteProducts = useDeleteProducts();
   const createProducts = useCreateProducts();
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportArticlesCsv(search);
+      toastManager.add({
+        title: "Exportation réussie",
+        description: "Le catalogue des articles a été exporté au format CSV.",
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur d'exportation",
+        description: getApiErrorMessage(err, "Impossible d'exporter les articles."),
+        type: "error",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleBulkDelete = async () => {
     await deleteProducts.mutateAsync(selectedIds.map(Number));
@@ -261,6 +286,14 @@ export function ProductTable(): React.ReactElement {
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
               Importer CSV
+            </Button>
+            <Button
+              variant="outline"
+              loading={isExporting}
+              onClick={handleExportCsv}
+            >
+              <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
+              Exporter CSV
             </Button>
             <Button onClick={() => setCreateDialogOpen(true)}>
               <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />

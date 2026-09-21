@@ -98,3 +98,27 @@ export async function setArticleSupplierPricePrimary(
   );
   return data;
 }
+
+export async function exportArticlesCsv(
+  search?: string,
+  categoryId?: number,
+  lowStock?: boolean,
+): Promise<void> {
+  const params: Record<string, unknown> = {};
+  if (search && search.trim()) {
+    params.search = search.trim();
+  }
+  if (categoryId !== undefined && categoryId !== null) {
+    params.categoryId = categoryId;
+  }
+  if (lowStock === true) {
+    params.lowStock = true;
+  }
+
+  const { data } = await api.get<Blob>('/stock/articles/export', {
+    params,
+    responseType: 'blob',
+  });
+  const { downloadCsvBlob } = await import('@/lib/csv');
+  downloadCsvBlob(data, 'articles.csv');
+}

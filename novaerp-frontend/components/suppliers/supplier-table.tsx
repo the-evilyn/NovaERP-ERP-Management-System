@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon,
   Delete02Icon,
+  Download01Icon,
   MoreVerticalIcon,
   PencilEdit01Icon,
 } from "@hugeicons/core-free-icons";
@@ -35,6 +36,8 @@ import PaginationTable from "@/components/shared/pagination-table";
 import { CreateSupplierDialog } from "@/components/suppliers/create-supplier-dialog";
 import { EditSupplierDialog } from "@/components/suppliers/edit-supplier-dialog";
 import { useDeleteSupplier, useSuppliers } from "@/hooks/use-suppliers";
+import { exportSuppliersCsv } from "@/services/suppliers.service";
+import { toastManager } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuth } from "@/providers/auth-provider";
 import type { SupplierResponse } from "@/types/models";
@@ -59,11 +62,32 @@ export function SupplierTable(): React.ReactElement {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [editingSupplier, setEditingSupplier] =
     useState<SupplierResponse | null>(null);
 
   const { data, isPending } = useSuppliers(currentPage - 1, pageSize);
   const deleteSupplier = useDeleteSupplier();
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportSuppliersCsv();
+      toastManager.add({
+        title: "Exportation réussie",
+        description: "La liste des fournisseurs a été exportée au format CSV.",
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur d'exportation",
+        description: getApiErrorMessage(err, "Impossible d'exporter les fournisseurs."),
+        type: "error",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleBulkDelete = async () => {
     setDeleteError(null);
@@ -149,23 +173,31 @@ export function SupplierTable(): React.ReactElement {
           ) : undefined
         }
         customHeader={
-          isAdmin ? (
-            <>
-              {selectedIds.length > 0 && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                  Supprimer ({selectedIds.length})
-                </Button>
-              )}
+          <>
+            {isAdmin && selectedIds.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                Supprimer ({selectedIds.length})
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              loading={isExporting}
+              onClick={handleExportCsv}
+            >
+              <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
+              Exporter CSV
+            </Button>
+            {isAdmin && (
               <Button onClick={() => setCreateDialogOpen(true)}>
                 <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
                 Nouveau fournisseur
               </Button>
-            </>
-          ) : undefined
+            )}
+          </>
         }
         actions={
           isAdmin

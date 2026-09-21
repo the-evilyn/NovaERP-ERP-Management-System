@@ -932,4 +932,43 @@ class SaleOrderServiceTest {
         var excessMonths = saleOrderService.getSalesEvolution(99);
         assertThat(excessMonths).hasSize(24);
     }
+
+    @Test
+    @DisplayName("exportSaleOrders returns CSV headers and BOM when no orders found")
+    void testExportSaleOrders_Empty() {
+        when(saleOrderRepository.findWithFiltersList(null, null)).thenReturn(List.of());
+
+        byte[] bytes = saleOrderService.exportSaleOrders(null, null);
+        String csv = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+
+        assertThat(csv).startsWith(com.novaerp.backend.common.csv.CsvUtils.UTF8_BOM);
+        assertThat(csv).contains("orderNumber,date,clientName,clientEmail,status,subtotalHt,taxRate,taxAmount,totalTtc,itemCount,notes");
+    }
+
+    @Test
+    @DisplayName("exportSaleOrders formats orders and filters correctly")
+    void testExportSaleOrders_Data() {
+        Client c = Client.builder().id(5L).name("Client Alpha SARL").email("alpha@client.ma").build();
+        SaleOrder order = SaleOrder.builder()
+                .id(1L)
+                .orderNumber("CMD-2026-001")
+                .client(c)
+                .status(SaleOrderStatus.CONFIRMED)
+                .subtotalHt(new BigDecimal("1000.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .taxAmount(new BigDecimal("200.0000"))
+                .totalTtc(new BigDecimal("1200.0000"))
+                .notes("Commande urgente")
+                .createdAt(Instant.parse("2026-09-15T08:30:00Z"))
+                .build();
+
+        when(saleOrderRepository.findWithFiltersList(SaleOrderStatus.CONFIRMED, 5L)).thenReturn(List.of(order));
+
+        byte[] bytes = saleOrderService.exportSaleOrders(SaleOrderStatus.CONFIRMED, 5L);
+        String csv = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+
+        assertThat(csv).startsWith(com.novaerp.backend.common.csv.CsvUtils.UTF8_BOM);
+        assertThat(csv).contains("CMD-2026-001,2026-09-15T08:30:00Z,Client Alpha SARL,alpha@client.ma,CONFIRMED,1000.0000,20.00,200.0000,1200.0000,0,Commande urgente");
+        verify(saleOrderRepository).findWithFiltersList(SaleOrderStatus.CONFIRMED, 5L);
+    }
 }

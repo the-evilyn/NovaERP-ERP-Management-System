@@ -29,11 +29,13 @@ export function ImportExportCard({
   title,
   description,
   columns,
+  allowImport = true,
 }: {
   entity: ImportExportEntity;
   title: string;
   description: string;
   columns: string[];
+  allowImport?: boolean;
 }): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<ImportResultResponse | null>(null);
@@ -102,22 +104,26 @@ export function ImportExportCard({
             <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
             Exporter (CSV)
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            loading={importMutation.isPending}
-          >
-            <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
-            Importer (CSV)
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+          {allowImport && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                loading={importMutation.isPending}
+              >
+                <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
+                Importer (CSV)
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </>
+          )}
         </div>
 
         {result && (

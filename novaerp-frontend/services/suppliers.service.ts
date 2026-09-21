@@ -40,3 +40,11 @@ export async function updateSupplier(
 export async function deleteSupplier(id: number): Promise<void> {
   await api.delete(`/stock/suppliers/${id}`);
 }
+
+export async function exportSuppliersCsv(): Promise<void> {
+  const { data } = await api.get<Blob>('/stock/suppliers/export', {
+    responseType: 'blob',
+  });
+  const { downloadCsvBlob } = await import('@/lib/csv');
+  downloadCsvBlob(data, 'suppliers.csv');
+}

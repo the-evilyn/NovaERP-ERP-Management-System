@@ -32,6 +32,7 @@ public class StockImportExportService {
     private final ArticleRepository articleRepository;
     private final ArticleSupplierPriceRepository articleSupplierPriceRepository;
     private final StockMovementService stockMovementService;
+    private final StockMovementRepository stockMovementRepository;
 
     // ---------------------------------------------------------------- categories
 
@@ -41,7 +42,7 @@ public class StockImportExportService {
         for (Category category : categoryRepository.findAll()) {
             sb.append(CsvUtils.row(category.getName(), category.getDescription()));
         }
-        return sb.toString().getBytes(StandardCharsets.UTF_8);
+        return CsvUtils.toCsvBytes(sb.toString());
     }
 
     @Transactional
@@ -86,7 +87,7 @@ public class StockImportExportService {
         for (Supplier supplier : supplierRepository.findAll()) {
             sb.append(CsvUtils.row(supplier.getName(), supplier.getEmail(), supplier.getPhone(), supplier.getAddress()));
         }
-        return sb.toString().getBytes(StandardCharsets.UTF_8);
+        return CsvUtils.toCsvBytes(sb.toString());
     }
 
     @Transactional
@@ -124,6 +125,44 @@ public class StockImportExportService {
         return new ImportResultResponse(created, skipped, failed, errors, List.of());
     }
 
+    // ------------------------------------------------------------------ stock movements
+
+    public byte[] exportStockMovements(Long articleId) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(CsvUtils.row("id", "date", "articleReference", "articleDesignation", "type",
+                "quantity", "reference", "warehouse", "location", "createdBy", "notes"));
+
+        List<StockMovement> movements = (articleId != null)
+                ? stockMovementRepository.findByArticleIdOrderByCreatedAtDesc(articleId)
+                : stockMovementRepository.findAllByOrderByCreatedAtDesc();
+
+        for (StockMovement m : movements) {
+            String articleRef = m.getArticle() != null ? m.getArticle().getReference() : "";
+            String articleDesig = m.getArticle() != null ? m.getArticle().getDesignation() : "";
+            String dateStr = m.getCreatedAt() != null ? m.getCreatedAt().toString() : "";
+            String typeStr = m.getType() != null ? m.getType().name() : "";
+            String qtyStr = m.getQuantity() != null ? m.getQuantity().toPlainString() : "0";
+            String warehouseStr = m.getWarehouse() != null ? m.getWarehouse().getName() : "";
+            String locationStr = m.getLocation() != null ? m.getLocation().getName() : "";
+            String userStr = m.getCreatedBy() != null ? m.getCreatedBy().getEmail() : "";
+
+            sb.append(CsvUtils.row(
+                    m.getId(),
+                    dateStr,
+                    articleRef,
+                    articleDesig,
+                    typeStr,
+                    qtyStr,
+                    m.getReference(),
+                    warehouseStr,
+                    locationStr,
+                    userStr,
+                    m.getNote()
+            ));
+        }
+        return CsvUtils.toCsvBytes(sb.toString());
+    }
+
     // ------------------------------------------------------------------ articles
 
     private static final int COL_REFERENCE = 0;
@@ -143,12 +182,27 @@ public class StockImportExportService {
     private static final int COL_PRIMARY_SUPPLIER = 14;
 
     public byte[] exportArticles() {
+        return exportArticles(null, null, null);
+    }
+
+    public byte[] exportArticles(String search, Long categoryId, Boolean lowStock) {
         StringBuilder sb = new StringBuilder();
         sb.append(CsvUtils.row("reference", "designation", "brand", "barcode", "category", "unit",
                 "purchasePriceHt", "unitCostTtc", "salePriceHt", "stockQuantity", "minStockQuantity",
                 "serialTracked", "description", "notes", "primarySupplier"));
 
-        for (Article article : articleRepository.findAll()) {
+        List<Article> articles;
+        if ((search != null && !search.isBlank()) || categoryId != null || (lowStock != null && lowStock)) {
+            articles = articleRepository.searchArticlesList(
+                    search != null && !search.isBlank() ? search.trim() : null,
+                    categoryId,
+                    lowStock
+            );
+        } else {
+            articles = articleRepository.findAll();
+        }
+
+        for (Article article : articles) {
             String primarySupplier = articleSupplierPriceRepository.findByArticleId(article.getId()).stream()
                     .filter(ArticleSupplierPrice::isPrimary)
                     .map(p -> p.getSupplier().getName())
@@ -162,18 +216,18 @@ public class StockImportExportService {
                     article.getBarcode(),
                     article.getCategory() != null ? article.getCategory().getName() : "",
                     article.getUnit() != null ? article.getUnit().getName() : "",
-                    article.getPurchasePriceHt(),
-                    article.getUnitCostTtc(),
-                    article.getSalePriceHt(),
-                    article.getStockQuantity(),
-                    article.getMinStockQuantity(),
+                    article.getPurchasePriceHt() != null ? article.getPurchasePriceHt().toPlainString() : "",
+                    article.getUnitCostTtc() != null ? article.getUnitCostTtc().toPlainString() : "",
+                    article.getSalePriceHt() != null ? article.getSalePriceHt().toPlainString() : "",
+                    article.getStockQuantity() != null ? article.getStockQuantity().toPlainString() : "0",
+                    article.getMinStockQuantity() != null ? article.getMinStockQuantity().toPlainString() : "0",
                     article.isSerialTracked(),
                     article.getDescription(),
                     article.getNotes(),
                     primarySupplier
             ));
         }
-        return sb.toString().getBytes(StandardCharsets.UTF_8);
+        return CsvUtils.toCsvBytes(sb.toString());
     }
 
     @Transactional

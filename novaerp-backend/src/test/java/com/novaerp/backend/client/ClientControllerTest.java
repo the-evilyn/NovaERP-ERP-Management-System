@@ -32,6 +32,9 @@ class ClientControllerTest {
     @Mock
     private ClientRepository clientRepository;
 
+    @Mock
+    private ClientExportService clientExportService;
+
     @InjectMocks
     private ClientController clientController;
 
@@ -154,5 +157,19 @@ class ClientControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(clientRepository).delete(sampleClient);
+    }
+
+    @Test
+    @DisplayName("export returns CSV attachment from ClientExportService")
+    void testExport() {
+        byte[] csv = "id,name\n1,Atlas\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(clientExportService.exportClients("atlas")).thenReturn(csv);
+
+        ResponseEntity<byte[]> res = clientController.export("atlas");
+
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(res.getBody()).isEqualTo(csv);
+        assertThat(res.getHeaders().getContentDisposition().getFilename()).isEqualTo("clients.csv");
+        verify(clientExportService).exportClients("atlas");
     }
 }

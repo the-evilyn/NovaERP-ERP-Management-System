@@ -4,6 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon,
   Delete02Icon,
+  Download01Icon,
   MoreVerticalIcon,
   PencilEdit01Icon,
   Upload01Icon,
@@ -38,6 +39,7 @@ import { parseCsv } from "@/lib/csv";
 import { toastManager } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useClients, useCreateClients, useDeleteClients } from "@/hooks/use-clients";
+import { exportClientsCsv } from "@/services/clients.service";
 import { useAuth } from "@/providers/auth-provider";
 import type { Client } from "@/types/models";
 
@@ -100,11 +102,32 @@ export function ClientTable(): React.ReactElement {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isPending } = useClients(currentPage - 1, pageSize, search);
   const deleteClients = useDeleteClients();
   const createClients = useCreateClients();
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportClientsCsv(search);
+      toastManager.add({
+        title: "Exportation réussie",
+        description: "La liste des clients a été exportée au format CSV.",
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur d'exportation",
+        description: getApiErrorMessage(err, "Impossible d'exporter les clients."),
+        type: "error",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleBulkDelete = async () => {
     const count = selectedIds.length;
@@ -257,38 +280,48 @@ export function ClientTable(): React.ReactElement {
           ) : undefined
         }
         customHeader={
-          isAdmin ? (
-            <>
-              {selectedIds.length > 0 && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                  Supprimer ({selectedIds.length})
-                </Button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={handleImportCsv}
-              />
+          <>
+            {isAdmin && selectedIds.length > 0 && (
               <Button
-                variant="outline"
-                loading={createClients.isPending}
-                onClick={() => fileInputRef.current?.click()}
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
               >
-                <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
-                Importer CSV
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                Supprimer ({selectedIds.length})
               </Button>
-              <Button onClick={() => setCreateDialogOpen(true)}>
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-                Nouveau client
-              </Button>
-            </>
-          ) : undefined
+            )}
+            <Button
+              variant="outline"
+              loading={isExporting}
+              onClick={handleExportCsv}
+            >
+              <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
+              Exporter CSV
+            </Button>
+            {isAdmin && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={handleImportCsv}
+                />
+                <Button
+                  variant="outline"
+                  loading={createClients.isPending}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
+                  Importer CSV
+                </Button>
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                  Nouveau client
+                </Button>
+              </>
+            )}
+          </>
         }
         actions={
           isAdmin

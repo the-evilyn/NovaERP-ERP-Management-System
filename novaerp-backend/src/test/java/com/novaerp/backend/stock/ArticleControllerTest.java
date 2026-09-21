@@ -256,4 +256,18 @@ class ArticleControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(articleRepository).delete(sampleArticle);
     }
+
+    @Test
+    @DisplayName("export returns CSV attachment from StockImportExportService")
+    void testExport() {
+        byte[] csv = "reference,designation\nART-01,Test\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(importExportService.exportArticles("mouse", 1L, true)).thenReturn(csv);
+
+        ResponseEntity<byte[]> response = articleController.export("mouse", 1L, true);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(csv);
+        assertThat(response.getHeaders().getContentDisposition().getFilename()).isEqualTo("articles.csv");
+        verify(importExportService).exportArticles("mouse", 1L, true);
+    }
 }

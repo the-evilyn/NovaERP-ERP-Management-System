@@ -39,6 +39,9 @@ class StockImportExportServiceTest {
     @Mock
     private StockMovementService stockMovementService;
 
+    @Mock
+    private StockMovementRepository stockMovementRepository;
+
     @InjectMocks
     private StockImportExportService service;
 
@@ -56,6 +59,7 @@ class StockImportExportServiceTest {
         byte[] bytes = service.exportCategories();
         String csv = new String(bytes, StandardCharsets.UTF_8);
 
+        assertThat(csv).startsWith(com.novaerp.backend.common.csv.CsvUtils.UTF8_BOM);
         assertThat(csv).contains("name,description");
         assertThat(csv).contains("Hydraulique,Vérins et flexibles");
     }
@@ -97,6 +101,7 @@ class StockImportExportServiceTest {
         byte[] bytes = service.exportSuppliers();
         String csv = new String(bytes, StandardCharsets.UTF_8);
 
+        assertThat(csv).startsWith(com.novaerp.backend.common.csv.CsvUtils.UTF8_BOM);
         assertThat(csv).contains("name,email,phone,address");
         assertThat(csv).contains("SNTL Logistique");
         assertThat(csv).contains("contact@sntl.ma");
@@ -123,13 +128,82 @@ class StockImportExportServiceTest {
     }
 
     @Test
-    @DisplayName("exportArticles() returns CSV headers")
-    void testExportArticles() {
+    @DisplayName("exportArticles() returns CSV headers and UTF-8 BOM")
+    void testExportArticles_Empty() {
         when(articleRepository.findAll()).thenReturn(List.of());
 
         byte[] bytes = service.exportArticles();
         String csv = new String(bytes, StandardCharsets.UTF_8);
 
+        assertThat(csv).startsWith(com.novaerp.backend.common.csv.CsvUtils.UTF8_BOM);
         assertThat(csv).contains("reference,designation,brand,barcode,category,unit");
+    }
+
+    @Test
+    @DisplayName("exportArticles() with filters calls searchArticlesList")
+    void testExportArticles_Filtered() {
+        Article art = Article.builder()
+                .id(10L)
+                .reference("REF-ELEC-01")
+                .designation("Câble d'alimentation")
+                .brand("Schneider")
+                .stockQuantity(new java.math.BigDecimal("5.0000"))
+                .minStockQuantity(new java.math.BigDecimal("10.0000"))
+                .build();
+
+        when(articleRepository.searchArticlesList("câble", 1L, true)).thenReturn(List.of(art));
+        when(articleSupplierPriceRepository.findByArticleId(10L)).thenReturn(List.of());
+
+        byte[] bytes = service.exportArticles("câble", 1L, true);
+        String csv = new String(bytes, StandardCharsets.UTF_8);
+
+        assertThat(csv).contains("REF-ELEC-01");
+        assertThat(csv).contains("Câble d'alimentation");
+        assertThat(csv).contains("Schneider");
+        verify(articleRepository).searchArticlesList("câble", 1L, true);
+    }
+
+    @Test
+    @DisplayName("exportStockMovements() formats stock movements with all headers and BOM")
+    void testExportStockMovements() {
+        Article art = Article.builder().id(1L).reference("ART-100").designation("Moteur AC").build();
+        com.novaerp.backend.user.User user = com.novaerp.backend.user.User.builder()
+                .id(1L).email("salma@novaerp.ma").fullName("Salma").build();
+        Warehouse wh = Warehouse.builder().id(1L).name("Entrepôt Central").build();
+        WarehouseLocation loc = WarehouseLocation.builder().id(1L).name("Allée A").build();
+
+        StockMovement mv = StockMovement.builder()
+                .id(50L)
+                .article(art)
+                .type(StockMovementType.IN)
+                .quantity(new java.math.BigDecimal("25.5000"))
+                .reference("PO-2026-001")
+                .warehouse(wh)
+                .location(loc)
+                .createdBy(user)
+                .note("Réception commande")
+                .createdAt(Instant.parse("2026-09-21T10:15:30Z"))
+                .build();
+
+        when(stockMovementRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(mv));
+
+        byte[] bytes = service.exportStockMovements(null);
+        String csv = new String(bytes, StandardCharsets.UTF_8);
+
+        assertThat(csv).startsWith(com.novaerp.backend.common.csv.CsvUtils.UTF8_BOM);
+        assertThat(csv).contains("id,date,articleReference,articleDesignation,type,quantity,reference,warehouse,location,createdBy,notes");
+        assertThat(csv).contains("50,2026-09-21T10:15:30Z,ART-100,Moteur AC,IN,25.5000,PO-2026-001,Entrepôt Central,Allée A,salma@novaerp.ma,Réception commande");
+    }
+
+    @Test
+    @DisplayName("exportStockMovements() with articleId calls findByArticleIdOrderByCreatedAtDesc")
+    void testExportStockMovements_WithArticleId() {
+        when(stockMovementRepository.findByArticleIdOrderByCreatedAtDesc(1L)).thenReturn(List.of());
+
+        byte[] bytes = service.exportStockMovements(1L);
+        String csv = new String(bytes, StandardCharsets.UTF_8);
+
+        assertThat(csv).contains("id,date,articleReference,articleDesignation,type,quantity,reference,warehouse,location,createdBy,notes");
+        verify(stockMovementRepository).findByArticleIdOrderByCreatedAtDesc(1L);
     }
 }

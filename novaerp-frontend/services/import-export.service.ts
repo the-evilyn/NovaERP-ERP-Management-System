@@ -3,23 +3,36 @@
 // (/api/stock/{articles|categories|suppliers}/export|import).
 
 import { api } from '@/lib/axios';
+import { downloadCsvBlob } from '@/lib/csv';
 import type { ImportResultResponse } from '@/types/models';
 
-export type ImportExportEntity = 'articles' | 'categories' | 'suppliers';
+export type ImportExportEntity =
+  | 'articles'
+  | 'categories'
+  | 'suppliers'
+  | 'clients'
+  | 'stock-movements'
+  | 'sale-orders';
 
-export async function exportCsv(entity: ImportExportEntity): Promise<void> {
-  const { data } = await api.get<Blob>(`/stock/${entity}/export`, {
+export async function exportCsv(
+  entity: ImportExportEntity,
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<void> {
+  let endpoint = `/stock/${entity}/export`;
+  if (entity === 'clients') {
+    endpoint = '/clients/export';
+  } else if (entity === 'stock-movements') {
+    endpoint = '/stock/movements/export';
+  } else if (entity === 'sale-orders') {
+    endpoint = '/sales/orders/export';
+  }
+
+  const { data } = await api.get<Blob>(endpoint, {
+    params,
     responseType: 'blob',
   });
 
-  const url = window.URL.createObjectURL(data);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${entity}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
+  downloadCsvBlob(data, `${entity}.csv`);
 }
 
 export async function importCsv(

@@ -20,4 +20,11 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             "LOWER(c.phone) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(c.city) LIKE LOWER(CONCAT('%', :search, '%'))")
     Page<Client> search(@Param("search") String search, Pageable pageable);
+
+    @Query("SELECT c FROM Client c WHERE " +
+            "LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(c.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(c.phone) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(c.city) LIKE LOWER(CONCAT('%', :search, '%')) ORDER BY c.id ASC")
+    java.util.List<Client> searchAll(@Param("search") String search);
 }

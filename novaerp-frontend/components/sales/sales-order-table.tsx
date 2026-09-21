@@ -17,7 +17,7 @@ import { toastManager } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { downloadPdfBlob } from "@/lib/pdf-download";
 import { formatCurrency, formatDate } from "@/lib/formatters";
-import { downloadSaleOrderPdf } from "@/services/sales.service";
+import { downloadSaleOrderPdf, exportSaleOrdersCsv } from "@/services/sales.service";
 import type { SaleOrderResponse, SaleOrderStatus } from "@/types/models";
 import { ViewSalesOrderDialog } from "@/components/sales/view-sales-order-dialog";
 
@@ -28,10 +28,31 @@ export function SalesOrderTable(): React.ReactElement {
   const [selectedOrder, setSelectedOrder] = useState<SaleOrderResponse | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading, isError } = useSaleOrders(page, 10, statusFilter);
   const confirmMutation = useConfirmSaleOrder();
   const deliverMutation = useDeliverSaleOrder();
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportSaleOrdersCsv(statusFilter);
+      toastManager.add({
+        title: "Exportation réussie",
+        description: "Les commandes de vente ont été exportées au format CSV.",
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur d'exportation",
+        description: getApiErrorMessage(err, "Impossible d'exporter les commandes de vente."),
+        type: "error",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const isAdmin = user?.role === "ADMIN";
   const orders = data?.content ?? [];
@@ -169,9 +190,21 @@ export function SalesOrderTable(): React.ReactElement {
           </Button>
         </div>
 
-        <span className="text-xs text-muted-foreground">
-          {totalElements} commande{totalElements > 1 ? "s" : ""} trouvée{totalElements > 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {totalElements} commande{totalElements > 1 ? "s" : ""} trouvée{totalElements > 1 ? "s" : ""}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            loading={isExporting}
+            onClick={handleExportCsv}
+          >
+            <HugeiconsIcon icon={Download01Icon} className="size-3.5 mr-1" />
+            Exporter CSV
+          </Button>
+        </div>
       </div>
 
       {/* Orders Table */}

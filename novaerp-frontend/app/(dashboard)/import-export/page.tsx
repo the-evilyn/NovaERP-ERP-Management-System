@@ -69,6 +69,30 @@ export default function ImportExportPage(): React.ReactElement {
         description="La liste des fournisseurs."
         columns={["name", "email", "phone", "address"]}
       />
+
+      <ImportExportCard
+        entity="clients"
+        title="Clients"
+        description="Le fichier des clients : coordonnées, ville, identifiant fiscal et historique."
+        columns={["id", "name", "email", "phone", "address", "city", "taxNumber", "notes", "createdAt"]}
+        allowImport={false}
+      />
+
+      <ImportExportCard
+        entity="stock-movements"
+        title="Mouvements de Stock"
+        description="L'historique complet des entrées, sorties et ajustements de stocks."
+        columns={["id", "date", "articleReference", "articleDesignation", "type", "quantity", "reference", "warehouse", "location", "createdBy", "notes"]}
+        allowImport={false}
+      />
+
+      <ImportExportCard
+        entity="sale-orders"
+        title="Commandes de Vente"
+        description="Le registre des commandes clients avec statuts, totaux HT/TTC et dates."
+        columns={["orderNumber", "date", "clientName", "clientEmail", "status", "subtotalHt", "taxRate", "taxAmount", "totalTtc", "itemCount", "notes"]}
+        allowImport={false}
+      />
     </div>
   );
 }

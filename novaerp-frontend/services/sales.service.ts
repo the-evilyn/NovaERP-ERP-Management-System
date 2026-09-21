@@ -67,3 +67,18 @@ export async function downloadSaleOrderPdf(id: number): Promise<{ blob: Blob; fi
   const filename = extractPdfFilename(response.headers["content-disposition"], `Commande_Client_CMD-${id}.pdf`);
   return { blob: response.data, filename };
 }
+
+export async function exportSaleOrdersCsv(
+  status?: SaleOrderStatus,
+  clientId?: number,
+): Promise<void> {
+  const response = await api.get<Blob>('/sales/orders/export', {
+    params: {
+      status: status || undefined,
+      clientId: clientId || undefined,
+    },
+    responseType: 'blob',
+  });
+  const { downloadCsvBlob } = await import('@/lib/csv');
+  downloadCsvBlob(response.data, 'sale-orders.csv');
+}

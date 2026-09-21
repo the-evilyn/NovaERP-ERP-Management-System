@@ -2,7 +2,10 @@
 
 import type React from "react";
 import { useState } from "react";
+import { Download01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardFrame, CardHeader } from "@/components/ui/card";
 import {
   Table,
@@ -15,6 +18,9 @@ import {
 import PaginationTable from "@/components/shared/pagination-table";
 import { useArticleMovements } from "@/hooks/use-stock-movements";
 import { formatDateTime } from "@/lib/formatters";
+import { toastManager } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { exportStockMovementsCsv } from "@/services/stock-movements.service";
 import type { ArticleResponse, StockMovementType } from "@/types/models";
 
 const typeLabels: Record<StockMovementType, string> = {
@@ -42,6 +48,8 @@ export function MovementHistory({
   const [pageSize, setPageSize] = useState(10);
   const [prevArticleId, setPrevArticleId] = useState(article.id);
 
+  const [isExporting, setIsExporting] = useState(false);
+
   if (article.id !== prevArticleId) {
     setPrevArticleId(article.id);
     setCurrentPage(1);
@@ -54,13 +62,44 @@ export function MovementHistory({
   );
   const movements = data?.content;
 
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      await exportStockMovementsCsv(article.id);
+      toastManager.add({
+        title: "Exportation réussie",
+        description: `Les mouvements de ${article.reference} ont été exportés au format CSV.`,
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur d'exportation",
+        description: getApiErrorMessage(err, "Impossible d'exporter les mouvements de stock."),
+        type: "error",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <Card>
-      <CardHeader>
-        <h2 className="font-semibold text-sm">Historique des mouvements</h2>
-        <p className="text-muted-foreground text-xs">
-          {article.designation} ({article.reference})
-        </p>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <div>
+          <h2 className="font-semibold text-sm">Historique des mouvements</h2>
+          <p className="text-muted-foreground text-xs">
+            {article.designation} ({article.reference})
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          loading={isExporting}
+          onClick={handleExportCsv}
+        >
+          <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
+          Exporter CSV
+        </Button>
       </CardHeader>
       <CardFrame className="mx-6 mb-6">
         <Table variant="card">

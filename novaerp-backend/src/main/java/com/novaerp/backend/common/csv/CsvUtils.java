@@ -10,7 +10,17 @@ import java.util.List;
  */
 public final class CsvUtils {
 
+    public static final String UTF8_BOM = "\uFEFF";
+
     private CsvUtils() {
+    }
+
+    public static byte[] toCsvBytes(String content) {
+        if (content == null) {
+            return new byte[0];
+        }
+        String withBom = content.startsWith(UTF8_BOM) ? content : UTF8_BOM + content;
+        return withBom.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     public static String escape(String value) {

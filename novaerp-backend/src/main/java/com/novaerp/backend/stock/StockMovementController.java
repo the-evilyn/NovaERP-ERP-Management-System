@@ -1,5 +1,6 @@
 package com.novaerp.backend.stock;
 
+import com.novaerp.backend.common.csv.CsvResponses;
 import com.novaerp.backend.stock.dto.StockMovementRequest;
 import com.novaerp.backend.stock.dto.StockMovementResponse;
 import com.novaerp.backend.user.User;
@@ -27,6 +28,13 @@ public class StockMovementController {
     private final StockMovementService stockMovementService;
     private final StockMovementRepository stockMovementRepository;
     private final UserRepository userRepository;
+    private final StockImportExportService stockImportExportService;
+
+    @GetMapping("/export")
+    @Operation(summary = "Export stock movements to CSV with optional article filter")
+    public ResponseEntity<byte[]> export(@RequestParam(required = false) Long articleId) {
+        return CsvResponses.attachment(stockImportExportService.exportStockMovements(articleId), "stock-movements.csv");
+    }
 
     @GetMapping
     @Operation(summary = "List all stock movements across all articles")

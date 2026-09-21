@@ -32,4 +32,8 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
 
     @Query("SELECT so FROM SaleOrder so WHERE so.createdAt >= :since AND so.status != com.novaerp.backend.sales.SaleOrderStatus.CANCELLED ORDER BY so.createdAt ASC")
     List<SaleOrder> findActiveOrdersSince(@Param("since") Instant since);
+
+    @Query("SELECT so FROM SaleOrder so LEFT JOIN FETCH so.client WHERE (:status IS NULL OR so.status = :status) AND (:clientId IS NULL OR so.client.id = :clientId) ORDER BY so.createdAt DESC")
+    List<SaleOrder> findWithFiltersList(@Param("status") SaleOrderStatus status,
+                                        @Param("clientId") Long clientId);
 }

@@ -12,6 +12,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.novaerp.backend.common.csv.CsvResponses;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
@@ -21,6 +22,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class ClientController {
 
     private final ClientRepository clientRepository;
+    private final ClientExportService clientExportService;
+
+    @GetMapping("/export")
+    @Operation(summary = "Export clients to CSV with optional search filter")
+    public ResponseEntity<byte[]> export(@RequestParam(required = false) String search) {
+        return CsvResponses.attachment(clientExportService.exportClients(search), "clients.csv");
+    }
 
     @GetMapping
     @Operation(summary = "List or search clients")

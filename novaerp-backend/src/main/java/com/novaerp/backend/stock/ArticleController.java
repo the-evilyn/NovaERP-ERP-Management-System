@@ -134,9 +134,12 @@ public class ArticleController {
     }
 
     @GetMapping("/export")
-    @Operation(summary = "Export all articles as CSV")
-    public ResponseEntity<byte[]> export() {
-        return CsvResponses.attachment(importExportService.exportArticles(), "articles.csv");
+    @Operation(summary = "Export articles as CSV with optional filtering")
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Boolean lowStock) {
+        return CsvResponses.attachment(importExportService.exportArticles(search, categoryId, lowStock), "articles.csv");
     }
 
     @PostMapping("/import")

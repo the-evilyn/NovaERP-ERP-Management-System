@@ -36,3 +36,14 @@ export async function createStockMovement(
   );
   return data;
 }
+
+export async function exportStockMovementsCsv(articleId?: number): Promise<void> {
+  const { data } = await api.get<Blob>('/stock/movements/export', {
+    params: {
+      articleId: articleId || undefined,
+    },
+    responseType: 'blob',
+  });
+  const { downloadCsvBlob } = await import('@/lib/csv');
+  downloadCsvBlob(data, 'stock-movements.csv');
+}

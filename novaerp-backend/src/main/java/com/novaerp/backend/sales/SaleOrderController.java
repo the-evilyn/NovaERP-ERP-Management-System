@@ -1,5 +1,6 @@
 package com.novaerp.backend.sales;
 
+import com.novaerp.backend.common.csv.CsvResponses;
 import com.novaerp.backend.common.pdf.DocumentPdfService;
 import com.novaerp.backend.sales.dto.SaleOrderRequest;
 import com.novaerp.backend.sales.dto.SaleOrderResponse;
@@ -29,6 +30,14 @@ public class SaleOrderController {
     private final SaleOrderService saleOrderService;
     private final UserRepository userRepository;
     private final DocumentPdfService documentPdfService;
+
+    @GetMapping("/export")
+    @Operation(summary = "Export sale orders to CSV with optional status or client filtering")
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) SaleOrderStatus status,
+            @RequestParam(required = false) Long clientId) {
+        return CsvResponses.attachment(saleOrderService.exportSaleOrders(status, clientId), "sale-orders.csv");
+    }
 
     @GetMapping
     @Operation(summary = "List all sale orders with optional status or client filtering")

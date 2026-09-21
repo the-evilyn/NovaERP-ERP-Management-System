@@ -2,6 +2,7 @@ package com.novaerp.backend.sales;
 
 import com.novaerp.backend.client.Client;
 import com.novaerp.backend.client.ClientRepository;
+import com.novaerp.backend.common.csv.CsvUtils;
 import com.novaerp.backend.sales.dto.*;
 import com.novaerp.backend.stock.*;
 import com.novaerp.backend.stock.dto.StockMovementRequest;
@@ -55,6 +56,43 @@ public class SaleOrderService {
             return saleOrderRepository.findByClientId(clientId, pageable).map(SaleOrderResponse::from);
         }
         return saleOrderRepository.findAll(pageable).map(SaleOrderResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportSaleOrders(SaleOrderStatus status, Long clientId) {
+        List<SaleOrder> orders = saleOrderRepository.findWithFiltersList(status, clientId);
+        StringBuilder sb = new StringBuilder();
+        sb.append(CsvUtils.row("orderNumber", "date", "clientName", "clientEmail", "status",
+                "subtotalHt", "taxRate", "taxAmount", "totalTtc", "itemCount", "notes"));
+
+        for (SaleOrder order : orders) {
+            String clientName = order.getClient() != null ? order.getClient().getName() : "";
+            String clientEmail = order.getClient() != null && order.getClient().getEmail() != null
+                    ? order.getClient().getEmail() : "";
+            String dateStr = order.getCreatedAt() != null ? order.getCreatedAt().toString() : "";
+            String statusStr = order.getStatus() != null ? order.getStatus().name() : "";
+            String subtotalStr = order.getSubtotalHt() != null ? order.getSubtotalHt().toPlainString() : "0.0000";
+            String taxRateStr = order.getTaxRate() != null ? order.getTaxRate().toPlainString() : "0.00";
+            String taxAmountStr = order.getTaxAmount() != null ? order.getTaxAmount().toPlainString() : "0.0000";
+            String totalTtcStr = order.getTotalTtc() != null ? order.getTotalTtc().toPlainString() : "0.0000";
+            int itemCount = order.getItems() != null ? order.getItems().size() : 0;
+
+            sb.append(CsvUtils.row(
+                    order.getOrderNumber(),
+                    dateStr,
+                    clientName,
+                    clientEmail,
+                    statusStr,
+                    subtotalStr,
+                    taxRateStr,
+                    taxAmountStr,
+                    totalTtcStr,
+                    itemCount,
+                    order.getNotes()
+            ));
+        }
+
+        return CsvUtils.toCsvBytes(sb.toString());
     }
 
     @Transactional(readOnly = true)

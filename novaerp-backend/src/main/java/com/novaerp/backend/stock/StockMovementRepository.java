@@ -12,4 +12,10 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     @Override
     @EntityGraph(attributePaths = {"article", "createdBy", "warehouse", "location"})
     Page<StockMovement> findAll(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"article", "createdBy", "warehouse", "location"})
+    java.util.List<StockMovement> findByArticleIdOrderByCreatedAtDesc(Long articleId);
+
+    @EntityGraph(attributePaths = {"article", "createdBy", "warehouse", "location"})
+    java.util.List<StockMovement> findAllByOrderByCreatedAtDesc();
 }

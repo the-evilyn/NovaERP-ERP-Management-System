@@ -234,4 +234,18 @@ class SaleOrderControllerTest {
         assertThat(response.getBody()).isEqualTo(pdfBytes);
         verify(documentPdfService).generateSaleOrderPdf(100L);
     }
+
+    @Test
+    @DisplayName("export returns CSV attachment from SaleOrderService")
+    void testExport() {
+        byte[] csv = "orderNumber,client\nCMD-01,ClientA\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(saleOrderService.exportSaleOrders(SaleOrderStatus.CONFIRMED, 1L)).thenReturn(csv);
+
+        ResponseEntity<byte[]> response = saleOrderController.export(SaleOrderStatus.CONFIRMED, 1L);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(csv);
+        assertThat(response.getHeaders().getContentDisposition().getFilename()).isEqualTo("sale-orders.csv");
+        verify(saleOrderService).exportSaleOrders(SaleOrderStatus.CONFIRMED, 1L);
+    }
 }
