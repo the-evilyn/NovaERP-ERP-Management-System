@@ -35,6 +35,8 @@ import PaginationTable from "@/components/shared/pagination-table";
 import { CreateClientDialog } from "@/components/clients/create-client-dialog";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 import { parseCsv } from "@/lib/csv";
+import { toastManager } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { useClients, useCreateClients, useDeleteClients } from "@/hooks/use-clients";
 import { useAuth } from "@/providers/auth-provider";
 import type { Client } from "@/types/models";
@@ -105,9 +107,23 @@ export function ClientTable(): React.ReactElement {
   const createClients = useCreateClients();
 
   const handleBulkDelete = async () => {
-    await deleteClients.mutateAsync(selectedIds.map(Number));
-    setSelectedIds([]);
-    setDeleteDialogOpen(false);
+    const count = selectedIds.length;
+    try {
+      await deleteClients.mutateAsync(selectedIds.map(Number));
+      setSelectedIds([]);
+      setDeleteDialogOpen(false);
+      toastManager.add({
+        title: "Clients supprimés",
+        description: `${count} client${count > 1 ? "s ont été supprimés" : " a été supprimé"} avec succès.`,
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur de suppression",
+        description: getApiErrorMessage(err, "Impossible de supprimer les clients sélectionnés."),
+        type: "error",
+      });
+    }
   };
 
   const handleImportCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,20 +131,40 @@ export function ClientTable(): React.ReactElement {
     e.target.value = "";
     if (!file) return;
 
-    const text = await file.text();
-    const rows = parseCsv(text);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
 
-    const clients = rows
-      .filter((row) => row.nom)
-      .map((row) => ({
-        nom: row.nom,
-        email: row.email || null,
-        telephone: row.telephone || null,
-        adresse: row.adresse || null,
-      }));
+      const clients = rows
+        .filter((row) => row.nom)
+        .map((row) => ({
+          nom: row.nom,
+          email: row.email || null,
+          telephone: row.telephone || null,
+          adresse: row.adresse || null,
+        }));
 
-    if (clients.length > 0) {
+      if (clients.length === 0) {
+        toastManager.add({
+          title: "Fichier vide ou invalide",
+          description: "Aucun client valide trouvé dans le fichier CSV (la colonne 'nom' est requise).",
+          type: "warning",
+        });
+        return;
+      }
+
       await createClients.mutateAsync(clients);
+      toastManager.add({
+        title: "Importation réussie",
+        description: `${clients.length} client${clients.length > 1 ? "s ont été importés" : " a été importé"} avec succès.`,
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur d'importation",
+        description: getApiErrorMessage(err, "Une erreur est survenue lors de l'import CSV."),
+        type: "error",
+      });
     }
   };
 

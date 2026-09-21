@@ -19,6 +19,7 @@ import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useUpdateClient } from "@/hooks/use-clients";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { toastManager } from "@/components/ui/toast";
 import type { Client } from "@/types/models";
 
 interface EditClientDialogProps {
@@ -72,6 +73,11 @@ export function EditClientDialog({
       });
 
       onOpenChange(false);
+      toastManager.add({
+        title: "Client modifié",
+        description: "Le client a été mis à jour avec succès.",
+        type: "success",
+      });
     } catch (err) {
       setError(getApiErrorMessage(err, "Impossible de modifier le client."));
     }

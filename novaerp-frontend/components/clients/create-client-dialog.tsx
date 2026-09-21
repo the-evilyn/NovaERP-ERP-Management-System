@@ -19,6 +19,7 @@ import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useCreateClients } from "@/hooks/use-clients";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { toastManager } from "@/components/ui/toast";
 
 interface CreateClientDialogProps {
   open: boolean;
@@ -57,6 +58,11 @@ export function CreateClientDialog({
 
       setForm(emptyForm);
       onOpenChange(false);
+      toastManager.add({
+        title: "Client créé",
+        description: "Le client a été créé avec succès.",
+        type: "success",
+      });
     } catch (err) {
       setError(getApiErrorMessage(err, "Impossible de créer le client."));
     }
