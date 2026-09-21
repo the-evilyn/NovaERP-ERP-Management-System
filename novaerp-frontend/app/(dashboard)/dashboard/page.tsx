@@ -312,7 +312,9 @@ export default function DashboardPage(): React.ReactElement {
             <CardFrameHeader>
               <CardFrameTitle>Valeur du stock par catégorie</CardFrameTitle>
               <CardFrameDescription>
-                Agrégation globale sur les 5 604 articles du catalogue
+                {stats?.totalArticles
+                  ? `Agrégation globale sur les ${stats.totalArticles} articles du catalogue`
+                  : "Agrégation globale sur les articles du catalogue"}
               </CardFrameDescription>
             </CardFrameHeader>
             <div className="px-6 pb-6">
