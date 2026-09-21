@@ -6,20 +6,16 @@ import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useAuth } from "@/providers/auth-provider";
 import { usePurchaseOrders } from "@/hooks/use-purchases";
 import { formatCurrency } from "@/lib/formatters";
 import { CreatePurchaseOrderDialog } from "@/components/purchases/create-purchase-order-dialog";
 import { PurchaseOrderTable } from "@/components/purchases/purchase-order-table";
 
 export default function PurchasesPage(): React.ReactElement {
-  const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const { data } = usePurchaseOrders(0, 100);
   const orders = data?.content ?? [];
-
-  const isAdmin = user?.role === "ADMIN";
 
   // KPIs
   const totalOrders = data?.totalElements ?? orders.length;
@@ -41,15 +37,13 @@ export default function PurchasesPage(): React.ReactElement {
           </p>
         </div>
 
-        {isAdmin && (
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            className="gap-2 self-start sm:self-auto"
-          >
-            <HugeiconsIcon icon={Add01Icon} className="size-4" />
-            Nouvelle commande d&apos;achat
-          </Button>
-        )}
+        <Button
+          onClick={() => setCreateDialogOpen(true)}
+          className="gap-2 self-start sm:self-auto"
+        >
+          <HugeiconsIcon icon={Add01Icon} className="size-4" />
+          Nouvelle commande d&apos;achat
+        </Button>
       </div>
 
       {/* KPI Cards */}

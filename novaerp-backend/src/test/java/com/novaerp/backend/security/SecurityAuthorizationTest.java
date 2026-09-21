@@ -72,12 +72,23 @@ class SecurityAuthorizationTest {
     }
 
     @Test
-    @DisplayName("ROLE_USER cannot POST to /api/clients (403 Forbidden)")
+    @DisplayName("ROLE_USER can access POST /api/clients (not 403 Forbidden)")
     @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
-    void testUserRole_CannotPostClient() throws Exception {
+    void testUserRole_CanPostClient() throws Exception {
         mockMvc.perform(post("/api/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Test Client\"}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("ROLE_USER cannot DELETE to /api/clients/1 (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotDeleteClient() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/clients/1"))
                 .andExpect(status().isForbidden());
     }
 
@@ -149,12 +160,23 @@ class SecurityAuthorizationTest {
     }
 
     @Test
-    @DisplayName("ROLE_USER cannot POST to /api/purchases/orders (403 Forbidden)")
+    @DisplayName("ROLE_USER can access POST /api/purchases/orders (not 403 Forbidden)")
     @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
-    void testUserRole_CannotPostPurchaseOrder() throws Exception {
+    void testUserRole_CanPostPurchaseOrder() throws Exception {
         mockMvc.perform(post("/api/purchases/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"supplierId\":1,\"items\":[]}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("ROLE_USER cannot POST to /api/purchases/orders/1/receive (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotReceivePurchaseOrder() throws Exception {
+        mockMvc.perform(post("/api/purchases/orders/1/receive"))
                 .andExpect(status().isForbidden());
     }
 
@@ -182,13 +204,16 @@ class SecurityAuthorizationTest {
     }
 
     @Test
-    @DisplayName("ROLE_USER cannot POST to /api/invoices/customers (403 Forbidden)")
+    @DisplayName("ROLE_USER can access POST /api/invoices/customers (not 403 Forbidden)")
     @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
-    void testUserRole_CannotPostCustomerInvoice() throws Exception {
+    void testUserRole_CanPostCustomerInvoice() throws Exception {
         mockMvc.perform(post("/api/invoices/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"clientId\":1,\"items\":[]}"))
-                .andExpect(status().isForbidden());
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
     }
 
     @Test
@@ -248,13 +273,16 @@ class SecurityAuthorizationTest {
     }
 
     @Test
-    @DisplayName("ROLE_USER cannot POST to /api/payments/customer-invoices/1 (403 Forbidden)")
+    @DisplayName("ROLE_USER can access POST /api/payments/customer-invoices/1 (not 403 Forbidden)")
     @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
-    void testUserRole_CannotPostPayment() throws Exception {
+    void testUserRole_CanPostPayment() throws Exception {
         mockMvc.perform(post("/api/payments/customer-invoices/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":100,\"paymentMethod\":\"CASH\"}"))
-                .andExpect(status().isForbidden());
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
     }
 
     @Test

@@ -13,10 +13,16 @@ const routeTitles: Record<string, string> = {
   "/categories": "Catégories",
   "/suppliers": "Fournisseurs",
   "/clients": "Clients",
+  "/sales": "Commandes Ventes",
+  "/purchases": "Commandes Fournisseurs (Achats)",
+  "/invoices": "Facturation",
+  "/payments": "Paiements",
   "/units": "Unités",
   "/warehouses": "Entrepôts",
   "/stock-movements": "Mouvements de stock",
+  "/stock/transfers": "Transferts de stock",
   "/import-export": "Import / Export",
+  "/users": "Gestion des utilisateurs",
 };
 
 export function SiteHeader(): React.ReactElement {

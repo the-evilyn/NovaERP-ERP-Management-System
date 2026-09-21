@@ -318,7 +318,7 @@ export function ViewSalesOrderDialog({
           </div>
 
           <div className="flex gap-2">
-            {isAdmin && order.status !== "CANCELLED" && order.items.length > 0 && (
+            {order.status !== "CANCELLED" && order.items.length > 0 && (
               <Button
                 type="button"
                 variant="outline"

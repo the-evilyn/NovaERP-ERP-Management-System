@@ -6,10 +6,6 @@ const ROLE_COOKIE_NAME = 'novaerp_role';
 const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password'];
 const ADMIN_ONLY_ROUTES = [
   '/import-export',
-  '/purchases',
-  '/invoices',
-  '/payments',
-  '/warehouses',
   '/users',
   '/stock/transfers/new',
 ];

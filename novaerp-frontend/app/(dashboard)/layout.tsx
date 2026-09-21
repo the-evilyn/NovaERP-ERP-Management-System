@@ -10,10 +10,6 @@ import { useAuth } from '@/providers/auth-provider';
 
 const ADMIN_ONLY_ROUTES = [
   '/import-export',
-  '/purchases',
-  '/invoices',
-  '/payments',
-  '/warehouses',
   '/users',
   '/stock/transfers/new',
 ];

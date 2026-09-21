@@ -315,43 +315,43 @@ export function ClientTable(): React.ReactElement {
                   <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
                   Importer CSV
                 </Button>
-                <Button onClick={() => setCreateDialogOpen(true)}>
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-                  Nouveau client
-                </Button>
               </>
             )}
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+              Nouveau client
+            </Button>
           </>
         }
-        actions={
-          isAdmin
-            ? (client) => (
-                <Menu>
-                  <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-                    <span className="sr-only">Ouvrir le menu</span>
-                    <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
-                  </MenuTrigger>
-                  <MenuPopup align="end">
-                    <MenuItem onClick={() => setEditingClient(client)}>
-                      <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
-                      Modifier
-                    </MenuItem>
-                    <MenuSeparator />
-                    <MenuItem
-                      variant="destructive"
-                      onClick={() => {
-                        setSelectedIds([client.id]);
-                        setDeleteDialogOpen(true);
-                      }}
-                    >
-                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                      Supprimer
-                    </MenuItem>
-                  </MenuPopup>
-                </Menu>
-              )
-            : undefined
-        }
+        actions={(client) => (
+          <Menu>
+            <MenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+              <span className="sr-only">Ouvrir le menu</span>
+              <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
+            </MenuTrigger>
+            <MenuPopup align="end">
+              <MenuItem onClick={() => setEditingClient(client)}>
+                <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+                Modifier
+              </MenuItem>
+              {isAdmin && (
+                <>
+                  <MenuSeparator />
+                  <MenuItem
+                    variant="destructive"
+                    onClick={() => {
+                      setSelectedIds([client.id]);
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                    Supprimer
+                  </MenuItem>
+                </>
+              )}
+            </MenuPopup>
+          </Menu>
+        )}
       />
 
       {data && data.totalElements > 0 && (
