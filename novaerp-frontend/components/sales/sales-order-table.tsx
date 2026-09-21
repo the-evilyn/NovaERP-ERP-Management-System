@@ -12,7 +12,9 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
-import { useConfirmSaleOrder, useSaleOrders } from "@/hooks/use-sales";
+import { useConfirmSaleOrder, useDeliverSaleOrder, useSaleOrders } from "@/hooks/use-sales";
+import { toastManager } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { downloadPdfBlob } from "@/lib/pdf-download";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { downloadSaleOrderPdf } from "@/services/sales.service";
@@ -29,6 +31,7 @@ export function SalesOrderTable(): React.ReactElement {
 
   const { data, isLoading, isError } = useSaleOrders(page, 10, statusFilter);
   const confirmMutation = useConfirmSaleOrder();
+  const deliverMutation = useDeliverSaleOrder();
 
   const isAdmin = user?.role === "ADMIN";
   const orders = data?.content ?? [];
@@ -44,8 +47,35 @@ export function SalesOrderTable(): React.ReactElement {
     e.stopPropagation();
     try {
       await confirmMutation.mutateAsync(orderId);
-    } catch {
-      // Handled in dialog or error display
+      toastManager.add({
+        title: "Commande confirmée",
+        description: "La commande a été confirmée et le stock a été mis à jour.",
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur",
+        description: getApiErrorMessage(err, "Impossible de confirmer la commande."),
+        type: "error",
+      });
+    }
+  };
+
+  const handleQuickDeliver = async (orderId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deliverMutation.mutateAsync(orderId);
+      toastManager.add({
+        title: "Commande livrée",
+        description: "La commande a été marquée comme livrée.",
+        type: "success",
+      });
+    } catch (err) {
+      toastManager.add({
+        title: "Erreur",
+        description: getApiErrorMessage(err, "Impossible de livrer la commande."),
+        type: "error",
+      });
     }
   };
 
@@ -267,6 +297,18 @@ export function SalesOrderTable(): React.ReactElement {
                         >
                           <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" />
                           Confirmer
+                        </Button>
+                      )}
+                      {isAdmin && order.status === "CONFIRMED" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs gap-1 text-blue-700 border-blue-300 hover:bg-blue-50"
+                          disabled={deliverMutation.isPending}
+                          onClick={(e) => handleQuickDeliver(order.id, e)}
+                        >
+                          <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" />
+                          Livrer
                         </Button>
                       )}
                     </div>

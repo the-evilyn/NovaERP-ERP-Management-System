@@ -302,6 +302,28 @@ public class SaleOrderService {
         return SaleOrderResponse.from(saved);
     }
 
+    @Transactional
+    public SaleOrderResponse deliver(Long id, User user) {
+        SaleOrder order = findOrderOrThrow(id);
+
+        if (order.getStatus() == SaleOrderStatus.DRAFT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La commande doit être confirmée avant d'être livrée");
+        }
+        if (order.getStatus() == SaleOrderStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Une commande annulée ne peut pas être livrée");
+        }
+        if (order.getStatus() == SaleOrderStatus.DELIVERED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La commande est déjà livrée");
+        }
+
+        order.setStatus(SaleOrderStatus.DELIVERED);
+        order.setDeliveredAt(Instant.now());
+
+        SaleOrder saved = saleOrderRepository.save(order);
+        log.info("Sale order {} marked as delivered", saved.getOrderNumber());
+        return SaleOrderResponse.from(saved);
+    }
+
     private void buildAndAttachItems(SaleOrder order, List<SaleOrderItemRequest> itemRequests) {
         for (SaleOrderItemRequest itemReq : itemRequests) {
             Article article = articleRepository.findById(itemReq.articleId())

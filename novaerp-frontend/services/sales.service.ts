@@ -52,6 +52,11 @@ export async function confirmSaleOrder(id: number): Promise<SaleOrderResponse> {
   return data;
 }
 
+export async function deliverSaleOrder(id: number): Promise<SaleOrderResponse> {
+  const { data } = await api.post<SaleOrderResponse>(`/sales/orders/${id}/deliver`);
+  return data;
+}
+
 export async function cancelSaleOrder(id: number): Promise<SaleOrderResponse> {
   const { data } = await api.post<SaleOrderResponse>(`/sales/orders/${id}/cancel`);
   return data;

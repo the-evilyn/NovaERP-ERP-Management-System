@@ -157,6 +157,37 @@ class SaleOrderControllerTest {
     }
 
     @Test
+    @DisplayName("deliver() triggers delivery and returns updated response")
+    void testDeliver() {
+        SaleOrderResponse delivered = new SaleOrderResponse(
+                100L,
+                "SO-2026-0001",
+                1L,
+                "Client Test",
+                "Casablanca",
+                SaleOrderStatus.DELIVERED,
+                new BigDecimal("500.0000"),
+                new BigDecimal("20.00"),
+                new BigDecimal("100.0000"),
+                new BigDecimal("600.0000"),
+                "Note",
+                1L,
+                "Admin",
+                Instant.now(),
+                Instant.now(),
+                Instant.now(),
+                List.of()
+        );
+
+        when(saleOrderService.deliver(eq(100L), any())).thenReturn(delivered);
+
+        SaleOrderResponse result = saleOrderController.deliver(100L, sampleAuth);
+
+        assertThat(result.status()).isEqualTo(SaleOrderStatus.DELIVERED);
+        verify(saleOrderService).deliver(eq(100L), any());
+    }
+
+    @Test
     @DisplayName("cancel() triggers cancellation")
     void testCancel() {
         SaleOrderResponse cancelled = new SaleOrderResponse(

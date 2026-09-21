@@ -84,6 +84,15 @@ public class SaleOrderController {
         return saleOrderService.confirm(id, user);
     }
 
+    @PostMapping("/{id}/deliver")
+    @Operation(summary = "Mark a confirmed sale order as delivered")
+    public SaleOrderResponse deliver(
+            @PathVariable Long id,
+            Authentication authentication) {
+        User user = resolveUser(authentication);
+        return saleOrderService.deliver(id, user);
+    }
+
     @PostMapping("/{id}/cancel")
     @Operation(summary = "Cancel order and reintegrate stock if previously confirmed")
     public SaleOrderResponse cancel(

@@ -804,4 +804,47 @@ class SaleOrderServiceTest {
         assertThat(result.getTotalElements()).isEqualTo(1);
         verify(saleOrderRepository).findWithFilters(SaleOrderStatus.CONFIRMED, 1L, pageable);
     }
+
+    @Test
+    @DisplayName("deliver transitions CONFIRMED order to DELIVERED with deliveredAt timestamp")
+    void testDeliver_Success() {
+        SaleOrder order = SaleOrder.builder()
+                .id(1L)
+                .orderNumber("CMD-2026-00001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.CONFIRMED)
+                .items(new ArrayList<>())
+                .build();
+
+        when(saleOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(saleOrderRepository.save(any(SaleOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SaleOrderResponse response = saleOrderService.deliver(1L, sampleUser);
+
+        assertThat(response.status()).isEqualTo(SaleOrderStatus.DELIVERED);
+        assertThat(response.deliveredAt()).isNotNull();
+        verify(saleOrderRepository).save(order);
+    }
+
+    @Test
+    @DisplayName("deliver rejects order in DRAFT status")
+    void testDeliver_RejectsDraft() {
+        SaleOrder order = SaleOrder.builder()
+                .id(1L)
+                .orderNumber("CMD-2026-00001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.DRAFT)
+                .items(new ArrayList<>())
+                .build();
+
+        when(saleOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> saleOrderService.deliver(1L, sampleUser))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> {
+                    ResponseStatusException rse = (ResponseStatusException) ex;
+                    assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(rse.getReason()).contains("doit être confirmée avant d'être livrée");
+                });
+    }
 }

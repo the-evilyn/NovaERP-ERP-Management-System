@@ -3,6 +3,7 @@ import {
   cancelSaleOrder,
   confirmSaleOrder,
   createSaleOrder,
+  deliverSaleOrder,
   getSaleOrder,
   getSaleOrders,
   updateSaleOrder,
@@ -63,6 +64,18 @@ export function useConfirmSaleOrder() {
       queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-kpis"] });
       queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+    },
+  });
+}
+
+export function useDeliverSaleOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => deliverSaleOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-kpis"] });
     },
   });
 }

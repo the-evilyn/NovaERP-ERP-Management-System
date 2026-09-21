@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCustomerInvoices, useCreateCustomerInvoiceFromSaleOrder } from "@/hooks/use-invoices";
 import { useAuth } from "@/providers/auth-provider";
-import { useCancelSaleOrder, useConfirmSaleOrder } from "@/hooks/use-sales";
+import { useCancelSaleOrder, useConfirmSaleOrder, useDeliverSaleOrder } from "@/hooks/use-sales";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { downloadPdfBlob } from "@/lib/pdf-download";
 import { formatCurrency, formatDateTime, formatQuantity } from "@/lib/formatters";
@@ -46,6 +46,7 @@ export function ViewSalesOrderDialog({
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const confirmMutation = useConfirmSaleOrder();
+  const deliverMutation = useDeliverSaleOrder();
   const cancelMutation = useCancelSaleOrder();
   const createInvoiceMutation = useCreateCustomerInvoiceFromSaleOrder();
   const customerInvoicesQuery = useCustomerInvoices(0, 20, undefined, undefined, order?.id);
@@ -92,6 +93,18 @@ export function ViewSalesOrderDialog({
     try {
       await confirmMutation.mutateAsync(order.id);
       setActionSuccess("Commande confirmée avec succès ! Le stock a été mis à jour automatiquement (Mouvement OUT).");
+      setTimeout(() => onOpenChange(false), 1500);
+    } catch (err) {
+      setErrorMsg(getApiErrorMessage(err));
+    }
+  };
+
+  const handleDeliver = async () => {
+    setErrorMsg(null);
+    setActionSuccess(null);
+    try {
+      await deliverMutation.mutateAsync(order.id);
+      setActionSuccess("Commande marquée comme livrée au client !");
       setTimeout(() => onOpenChange(false), 1500);
     } catch (err) {
       setErrorMsg(getApiErrorMessage(err));
@@ -345,6 +358,17 @@ export function ViewSalesOrderDialog({
               >
                 <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4" />
                 {confirmMutation.isPending ? "Confirmation..." : "Confirmer la commande (Déduire stock)"}
+              </Button>
+            )}
+            {isAdmin && order.status === "CONFIRMED" && (
+              <Button
+                type="button"
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+                onClick={handleDeliver}
+                disabled={deliverMutation.isPending}
+              >
+                <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4" />
+                {deliverMutation.isPending ? "Mise à jour..." : "Marquer comme livrée"}
               </Button>
             )}
           </div>
