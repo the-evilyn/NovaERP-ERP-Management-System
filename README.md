@@ -55,7 +55,7 @@ L'authentification est basée sur des jetons JWT HMAC-SHA256 avec politique RBAC
 
 ### Comptes de Démonstration (inclus dans la base) :
 - **Administrateur :** `admin@novaerp.local` / `Admin123!` (Rôle: `ROLE_ADMIN`)
-- **Opérateur de stock :** `sara.amrani@novaerp.local` / `User1234!` (Rôle: `ROLE_USER`)
+- **Opérateur de stock :** `ali.ibrahim@novaerp.local` / `User1234!` (Rôle: `ROLE_USER`)
 
 ---
 
@@ -183,7 +183,7 @@ npm run build   # Génère les 17 routes statiques avec succès
 5. **Gestion Opérationnelle & Traçabilité (2 min) :**
    - Présentation du module *Clients* (`/clients`) avec recherche instantanée.
    - Présentation de l'enregistrement d'un mouvement de stock (protection contre le stock négatif en sortie).
-   - Connexion rapide avec le compte opérateur (`sara.amrani@novaerp.local`) pour démontrer la restriction des droits d'administration (lecture + mouvements autorisés, administration bloquée).
+   - Connexion rapide avec le compte opérateur (`ali.ibrahim@novaerp.local`) pour démontrer la restriction des droits d'administration (lecture + mouvements autorisés, administration bloquée).
 
 6. **Conclusion & Perspectives (1 min) :**
    - Synthèse des apports : gains de temps, zéro rupture non anticipée, visibilité financière complète.

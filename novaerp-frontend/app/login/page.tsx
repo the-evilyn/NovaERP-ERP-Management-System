@@ -115,7 +115,7 @@ export default function LoginPage(): React.ReactElement {
             </div>
             <div className="flex items-center justify-between">
               <span className="font-medium">Utilisateur :</span>
-              <span className="font-mono text-[11px] text-foreground bg-muted px-1.5 py-0.5 rounded">sara.amrani@novaerp.local / User1234!</span>
+              <span className="font-mono text-[11px] text-foreground bg-muted px-1.5 py-0.5 rounded">ali.ibrahim@novaerp.local / User1234!</span>
             </div>
           </div>
         </div>

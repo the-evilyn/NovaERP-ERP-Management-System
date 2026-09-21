@@ -102,15 +102,15 @@ public class DataSeeder implements CommandLineRunner {
     private List<User> seedUsers() {
         List<User> users = List.of(
                 User.builder()
-                        .fullName("Rida Ezziani")
+                        .fullName("Salma El Fahdi")
                         .email("admin@novaerp.local")
                         .password(passwordEncoder.encode("Admin123!"))
                         .role(Role.ADMIN)
                         .enabled(true)
                         .build(),
                 User.builder()
-                        .fullName("Sara Amrani")
-                        .email("sara.amrani@novaerp.local")
+                        .fullName("Ali Ibn Brahim")
+                        .email("ali.ibrahim@novaerp.local")
                         .password(passwordEncoder.encode("User1234!"))
                         .role(Role.USER)
                         .enabled(true)
@@ -415,7 +415,7 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedStockMovements(List<Article> articles, List<User> users) {
         User admin = users.get(0);
-        User sara = users.get(1);
+        User ali = users.get(1);
 
         Warehouse warehouse = resolveDefaultWarehouse();
         WarehouseLocation location = resolveDefaultLocation(warehouse);
@@ -439,7 +439,7 @@ public class DataSeeder implements CommandLineRunner {
                         .note("Customer order fulfillment")
                         .warehouse(warehouse)
                         .location(location)
-                        .createdBy(sara)
+                        .createdBy(ali)
                         .build(),
                 StockMovement.builder()
                         .article(articles.get(1))
@@ -459,7 +459,7 @@ public class DataSeeder implements CommandLineRunner {
                         .note("Customer order fulfillment")
                         .warehouse(warehouse)
                         .location(location)
-                        .createdBy(sara)
+                        .createdBy(ali)
                         .build(),
                 StockMovement.builder()
                         .article(articles.get(2))
@@ -479,7 +479,7 @@ public class DataSeeder implements CommandLineRunner {
                         .note("Installed at client site")
                         .warehouse(warehouse)
                         .location(location)
-                        .createdBy(sara)
+                        .createdBy(ali)
                         .build(),
                 StockMovement.builder()
                         .article(articles.get(4))
@@ -519,7 +519,7 @@ public class DataSeeder implements CommandLineRunner {
                         .note("Customer order fulfillment")
                         .warehouse(warehouse)
                         .location(location)
-                        .createdBy(sara)
+                        .createdBy(ali)
                         .build(),
                 StockMovement.builder()
                         .article(articles.get(8))
@@ -539,7 +539,7 @@ public class DataSeeder implements CommandLineRunner {
                         .note("Customer order fulfillment")
                         .warehouse(warehouse)
                         .location(location)
-                        .createdBy(sara)
+                        .createdBy(ali)
                         .build()
         );
         stockMovementRepository.saveAll(movements);
@@ -580,7 +580,7 @@ public class DataSeeder implements CommandLineRunner {
 
     private List<PurchaseOrder> seedPurchaseOrders(List<Supplier> suppliers, List<Article> articles, List<User> users) {
         User admin = users.get(0);
-        User sara = users.get(1);
+        User ali = users.get(1);
         Warehouse warehouse = resolveDefaultWarehouse();
         WarehouseLocation location = resolveDefaultLocation(warehouse);
 
@@ -629,7 +629,7 @@ public class DataSeeder implements CommandLineRunner {
                 .taxAmount(new BigDecimal("700.0000"))
                 .totalTtc(new BigDecimal("4200.0000"))
                 .notes("Commande réapprovisionnement papier A4 - En cours d'acheminement")
-                .createdBy(sara)
+                .createdBy(ali)
                 .createdAt(now.minus(Duration.ofDays(3)))
                 .confirmedAt(now.minus(Duration.ofDays(2)))
                 .items(new ArrayList<>())
@@ -648,7 +648,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private List<SaleOrder> seedSaleOrders(List<Client> clients, List<Article> articles, List<User> users) {
-        User sara = users.get(1);
+        User ali = users.get(1);
         Warehouse warehouse = resolveDefaultWarehouse();
         WarehouseLocation location = resolveDefaultLocation(warehouse);
 
@@ -666,7 +666,7 @@ public class DataSeeder implements CommandLineRunner {
                 .taxAmount(new BigDecimal("1290.0000"))
                 .totalTtc(new BigDecimal("7740.0000"))
                 .notes("Équipement informatique postes de travail - Livré et réceptionné client")
-                .createdBy(sara)
+                .createdBy(ali)
                 .createdAt(now.minus(Duration.ofDays(7)))
                 .confirmedAt(now.minus(Duration.ofDays(6)))
                 .deliveredAt(now.minus(Duration.ofDays(3)))
@@ -694,7 +694,7 @@ public class DataSeeder implements CommandLineRunner {
                 .taxAmount(new BigDecimal("1218.6000"))
                 .totalTtc(new BigDecimal("7311.6000"))
                 .notes("Devis pour claviers mécaniques et switch Gigabit")
-                .createdBy(sara)
+                .createdBy(ali)
                 .createdAt(now.minus(Duration.ofDays(1)))
                 .items(new ArrayList<>())
                 .build();
@@ -721,7 +721,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private List<CustomerInvoice> seedCustomerInvoices(List<Client> clients, List<SaleOrder> saleOrders, List<User> users) {
-        User sara = users.get(1);
+        User ali = users.get(1);
         SaleOrder soDelivered = saleOrders.get(0);
         Instant now = Instant.now();
 
@@ -735,7 +735,7 @@ public class DataSeeder implements CommandLineRunner {
                 .taxAmount(new BigDecimal("1290.0000"))
                 .totalTtc(new BigDecimal("7740.0000"))
                 .notes("Facture relative à la commande SO-2026-0010")
-                .createdBy(sara)
+                .createdBy(ali)
                 .createdAt(now.minus(Duration.ofDays(3)))
                 .issuedAt(now.minus(Duration.ofDays(2)))
                 .items(new ArrayList<>())
@@ -754,7 +754,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private List<Payment> seedCustomerPayments(List<CustomerInvoice> customerInvoices, List<User> users) {
-        User sara = users.get(1);
+        User ali = users.get(1);
         CustomerInvoice invoice = customerInvoices.get(0);
         Instant now = Instant.now();
 
@@ -767,7 +767,7 @@ public class DataSeeder implements CommandLineRunner {
                 .referenceNumber("VIR-BMCE-992014")
                 .paymentDate(now.minus(Duration.ofDays(1)))
                 .createdAt(now.minus(Duration.ofDays(1)))
-                .createdBy(sara)
+                .createdBy(ali)
                 .notes("Acompte client 4 000 MAD reçu par virement bancaire BMCE")
                 .build();
 

@@ -70,4 +70,4 @@ Execute the full suite of 45 unit and integration tests:
 
 - `spring.jpa.hibernate.ddl-auto=update` is used for schema synchronization.
 - Test suite connects automatically to PostgreSQL on localhost:5433 via `src/test/resources/application.yml`.
-- Demo users: `admin@novaerp.local` (ADMIN) and `sara.amrani@novaerp.local` (USER).
+- Demo users: `admin@novaerp.local` (ADMIN) and `ali.ibrahim@novaerp.local` (USER).
