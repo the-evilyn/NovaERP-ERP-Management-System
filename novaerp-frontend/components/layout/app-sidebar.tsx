@@ -9,6 +9,7 @@ import {
   FileExportIcon,
   Invoice01Icon,
   Package02Icon,
+  ShieldUserIcon,
   ShoppingCart01Icon,
   Store01Icon,
   TruckDeliveryIcon,
@@ -57,6 +58,11 @@ const navMain: NavMainItem[] = [
     url: "/import-export",
     icon: FileExportIcon,
   },
+  {
+    title: "Utilisateurs",
+    url: "/users",
+    icon: ShieldUserIcon,
+  },
 ];
 
 const ADMIN_ONLY_ROUTES = [
@@ -66,6 +72,7 @@ const ADMIN_ONLY_ROUTES = [
   "/payments",
   "/warehouses",
   "/import-export",
+  "/users",
 ];
 
 export function AppSidebar(

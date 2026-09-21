@@ -15,6 +15,7 @@ const ADMIN_ONLY_ROUTES = [
   '/invoices',
   '/payments',
   '/warehouses',
+  '/users',
   '/stock/transfers/new',
 ];
 
