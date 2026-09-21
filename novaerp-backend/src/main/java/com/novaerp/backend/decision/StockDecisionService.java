@@ -2,6 +2,7 @@ package com.novaerp.backend.decision;
 
 import com.novaerp.backend.decision.dto.ReorderRecommendationResponse;
 import com.novaerp.backend.decision.dto.StockRiskSummaryResponse;
+import com.novaerp.backend.sales.SaleOrderRepository;
 import com.novaerp.backend.stock.Article;
 import com.novaerp.backend.stock.ArticleRepository;
 import com.novaerp.backend.stock.ArticleSupplierPrice;
@@ -15,201 +16,222 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Smart Stock Decision Support Engine.
+ * Provides explainable, data-driven stock intelligence using empirical sales consumption (DELIVERED orders),
+ * supplier lead times, dynamic safety stock, and deterministic reorder point modeling.
+ */
 @Service
 @RequiredArgsConstructor
 public class StockDecisionService {
 
+    public static final int OBSERVATION_WINDOW_DAYS = 30;
+    public static final int DEFAULT_LEAD_TIME_DAYS = 7;
+
     private final ArticleRepository articleRepository;
     private final ArticleSupplierPriceRepository supplierPriceRepository;
+    private final SaleOrderRepository saleOrderRepository;
 
     @Transactional(readOnly = true)
     public Page<ReorderRecommendationResponse> getRecommendations(RiskLevel filterLevel, Pageable pageable) {
-        if (filterLevel == null) {
-            Page<Article> articlesPage = articleRepository.findAtRiskArticles(pageable);
-            List<Long> articleIds = articlesPage.getContent().stream().map(Article::getId).toList();
+        Instant since = Instant.now().minus(Duration.ofDays(OBSERVATION_WINDOW_DAYS));
+        Map<Long, BigDecimal> salesByArticle = getDeliveredSalesByArticle(since);
 
-            Map<Long, List<ArticleSupplierPrice>> pricesByArticle = supplierPriceRepository.findByArticleIdIn(articleIds)
-                    .stream()
-                    .collect(Collectors.groupingBy(p -> p.getArticle().getId()));
-
-            List<ReorderRecommendationResponse> recommendations = articlesPage.getContent().stream()
-                    .map(article -> buildRecommendation(article, pricesByArticle.getOrDefault(article.getId(), Collections.emptyList())))
-                    .toList();
-
-            return new PageImpl<>(recommendations, pageable, articlesPage.getTotalElements());
+        List<Article> allArticles = articleRepository.findAll();
+        if (allArticles.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
 
-        List<Article> allAtRisk = articleRepository.findAllAtRiskArticles();
-        List<Article> matchingArticles = allAtRisk.stream()
-                .filter(a -> determineRiskLevel(a) == filterLevel)
-                .sorted(Comparator.comparing(
-                        (Article a) -> a.getStockQuantity().compareTo(BigDecimal.ZERO) <= 0 ? 0 : 1
-                ).thenComparing(a -> {
-                    BigDecimal min = a.getMinStockQuantity();
-                    if (min == null || min.compareTo(BigDecimal.ZERO) <= 0) return 0.0;
-                    return a.getStockQuantity().doubleValue() / min.doubleValue();
-                }))
-                .toList();
-
-        long total = matchingArticles.size();
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), (int) total);
-        List<Article> pageArticles = (start <= total) ? matchingArticles.subList(start, end) : Collections.emptyList();
-
-        List<Long> articleIds = pageArticles.stream().map(Article::getId).toList();
+        List<Long> articleIds = allArticles.stream().map(Article::getId).toList();
         Map<Long, List<ArticleSupplierPrice>> pricesByArticle = supplierPriceRepository.findByArticleIdIn(articleIds)
                 .stream()
                 .collect(Collectors.groupingBy(p -> p.getArticle().getId()));
 
-        List<ReorderRecommendationResponse> recommendations = pageArticles.stream()
-                .map(article -> buildRecommendation(article, pricesByArticle.getOrDefault(article.getId(), Collections.emptyList())))
+        List<ReorderRecommendationResponse> allRecommendations = allArticles.stream()
+                .map(article -> buildRecommendation(
+                        article,
+                        pricesByArticle.getOrDefault(article.getId(), Collections.emptyList()),
+                        salesByArticle.getOrDefault(article.getId(), BigDecimal.ZERO)
+                ))
                 .toList();
 
-        return new PageImpl<>(recommendations, pageable, total);
-    }
-
-    public RiskLevel determineRiskLevel(Article article) {
-        BigDecimal currentStock = article.getStockQuantity();
-        BigDecimal minStock = article.getMinStockQuantity();
-        if (currentStock == null || currentStock.compareTo(BigDecimal.ZERO) <= 0) {
-            return RiskLevel.OUT_OF_STOCK;
-        }
-        if (minStock == null || minStock.compareTo(BigDecimal.ZERO) <= 0) {
-            return RiskLevel.NORMAL;
-        }
-        double ratio = currentStock.doubleValue() / minStock.doubleValue();
-        if (ratio <= 0.33) {
-            return RiskLevel.CRITICAL;
-        } else if (ratio <= 1.0) {
-            return RiskLevel.WARNING;
+        List<ReorderRecommendationResponse> filteredRecommendations;
+        if (filterLevel == null) {
+            filteredRecommendations = allRecommendations.stream()
+                    .filter(rec -> rec.riskLevel() != RiskLevel.LOW && rec.riskLevel() != RiskLevel.NORMAL)
+                    .sorted(getRiskComparator())
+                    .toList();
         } else {
-            return RiskLevel.NORMAL;
+            filteredRecommendations = allRecommendations.stream()
+                    .filter(rec -> matchesFilter(rec, filterLevel))
+                    .sorted(getRiskComparator())
+                    .toList();
         }
+
+        long total = filteredRecommendations.size();
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), (int) total);
+        List<ReorderRecommendationResponse> pageContent = (start <= total)
+                ? filteredRecommendations.subList(start, end)
+                : Collections.emptyList();
+
+        return new PageImpl<>(pageContent, pageable, total);
     }
 
     @Transactional(readOnly = true)
     public StockRiskSummaryResponse getSummary() {
-        List<Article> atRiskArticles = articleRepository.findAllAtRiskArticles();
-        if (atRiskArticles.isEmpty()) {
-            return new StockRiskSummaryResponse(0, 0, 0, 0, BigDecimal.ZERO, 0.0);
+        Instant since = Instant.now().minus(Duration.ofDays(OBSERVATION_WINDOW_DAYS));
+        Map<Long, BigDecimal> salesByArticle = getDeliveredSalesByArticle(since);
+
+        List<Article> allArticles = articleRepository.findAll();
+        if (allArticles.isEmpty()) {
+            return new StockRiskSummaryResponse(0, 0, 0, 0, 0, BigDecimal.ZERO);
         }
 
-        long outOfStock = 0;
-        long critical = 0;
-        long warning = 0;
+        List<Long> articleIds = allArticles.stream().map(Article::getId).toList();
+        Map<Long, List<ArticleSupplierPrice>> pricesByArticle = supplierPriceRepository.findByArticleIdIn(articleIds)
+                .stream()
+                .collect(Collectors.groupingBy(p -> p.getArticle().getId()));
+
+        long outOfStockCount = 0;
+        long criticalCount = 0;
+        long highCount = 0;
+        long mediumCount = 0;
+        long totalArticlesAtRisk = 0;
         BigDecimal totalBudget = BigDecimal.ZERO;
-        double totalRiskScore = 0.0;
 
-        for (Article article : atRiskArticles) {
-            BigDecimal currentStock = article.getStockQuantity();
-            BigDecimal minStock = article.getMinStockQuantity();
+        for (Article article : allArticles) {
+            ReorderRecommendationResponse rec = buildRecommendation(
+                    article,
+                    pricesByArticle.getOrDefault(article.getId(), Collections.emptyList()),
+                    salesByArticle.getOrDefault(article.getId(), BigDecimal.ZERO)
+            );
 
-            double score;
-            RiskLevel level;
-
-            if (currentStock.compareTo(BigDecimal.ZERO) <= 0) {
-                level = RiskLevel.OUT_OF_STOCK;
-                score = 100.0;
-                outOfStock++;
-            } else if (minStock.compareTo(BigDecimal.ZERO) <= 0) {
-                level = RiskLevel.NORMAL;
-                score = 0.0;
-            } else {
-                double ratio = currentStock.doubleValue() / minStock.doubleValue();
-                if (ratio <= 0.33) {
-                    level = RiskLevel.CRITICAL;
-                    score = Math.min(99.0, Math.max(70.0, (1.0 - ratio) * 100.0));
-                    critical++;
-                } else if (ratio <= 1.0) {
-                    level = RiskLevel.WARNING;
-                    score = Math.min(69.0, Math.max(10.0, (1.0 - ratio) * 100.0));
-                    warning++;
-                } else {
-                    level = RiskLevel.NORMAL;
-                    score = 0.0;
-                }
+            if (rec.currentStock().compareTo(BigDecimal.ZERO) <= 0) {
+                outOfStockCount++;
             }
 
-            BigDecimal suggested = calculateSuggestedQuantity(currentStock, minStock);
-            BigDecimal price = article.getPurchasePriceHt() != null ? article.getPurchasePriceHt() : BigDecimal.ZERO;
-            totalBudget = totalBudget.add(suggested.multiply(price));
-            totalRiskScore += score;
+            switch (rec.riskLevel()) {
+                case CRITICAL, OUT_OF_STOCK -> criticalCount++;
+                case HIGH -> highCount++;
+                case MEDIUM, WARNING -> mediumCount++;
+                default -> {}
+            }
+
+            if (rec.riskLevel() != RiskLevel.LOW && rec.riskLevel() != RiskLevel.NORMAL) {
+                totalArticlesAtRisk++;
+                totalBudget = totalBudget.add(rec.estimatedBudget());
+            }
         }
 
-        long totalAtRisk = outOfStock + critical + warning;
-        double avgScore = totalAtRisk > 0 ? (totalRiskScore / totalAtRisk) : 0.0;
-
         return new StockRiskSummaryResponse(
-                totalAtRisk,
-                outOfStock,
-                critical,
-                warning,
-                totalBudget.setScale(2, RoundingMode.HALF_UP),
-                Math.round(avgScore * 10.0) / 10.0
+                totalArticlesAtRisk,
+                outOfStockCount,
+                criticalCount,
+                highCount,
+                mediumCount,
+                totalBudget.setScale(2, RoundingMode.HALF_UP)
         );
     }
 
-    public ReorderRecommendationResponse buildRecommendation(Article article, List<ArticleSupplierPrice> prices) {
-        BigDecimal currentStock = article.getStockQuantity();
-        BigDecimal minStock = article.getMinStockQuantity();
-
-        RiskLevel level;
-        double riskScore;
-
-        if (currentStock.compareTo(BigDecimal.ZERO) <= 0) {
-            level = RiskLevel.OUT_OF_STOCK;
-            riskScore = 100.0;
-        } else if (minStock.compareTo(BigDecimal.ZERO) <= 0) {
-            level = RiskLevel.NORMAL;
-            riskScore = 0.0;
-        } else {
-            double ratio = currentStock.doubleValue() / minStock.doubleValue();
-            if (ratio <= 0.33) {
-                level = RiskLevel.CRITICAL;
-                riskScore = Math.round((1.0 - ratio) * 1000.0) / 10.0;
-            } else if (ratio <= 1.0) {
-                level = RiskLevel.WARNING;
-                riskScore = Math.round((1.0 - ratio) * 1000.0) / 10.0;
-            } else {
-                level = RiskLevel.NORMAL;
-                riskScore = 0.0;
+    public Map<Long, BigDecimal> getDeliveredSalesByArticle(Instant since) {
+        List<Object[]> results = saleOrderRepository.sumDeliveredQuantitiesByArticleSince(since);
+        Map<Long, BigDecimal> map = new HashMap<>();
+        if (results != null) {
+            for (Object[] row : results) {
+                if (row != null && row.length >= 2 && row[0] != null) {
+                    Long articleId = (Long) row[0];
+                    BigDecimal qty = row[1] instanceof BigDecimal b ? b : (row[1] != null ? BigDecimal.valueOf(((Number) row[1]).doubleValue()) : BigDecimal.ZERO);
+                    map.put(articleId, qty);
+                }
             }
         }
+        return map;
+    }
 
-        BigDecimal suggestedQuantity = calculateSuggestedQuantity(currentStock, minStock);
+    public ReorderRecommendationResponse buildRecommendation(
+            Article article,
+            List<ArticleSupplierPrice> prices,
+            BigDecimal deliveredQtyInWindow
+    ) {
+        BigDecimal currentStock = article.getStockQuantity() != null ? article.getStockQuantity() : BigDecimal.ZERO;
+        BigDecimal minStock = article.getMinStockQuantity() != null ? article.getMinStockQuantity() : BigDecimal.ZERO;
+        BigDecimal deliveredQty = deliveredQtyInWindow != null ? deliveredQtyInWindow : BigDecimal.ZERO;
 
-        // Find optimal supplier
-        ArticleSupplierPrice chosenPrice = null;
-        if (!prices.isEmpty()) {
-            chosenPrice = prices.stream()
-                    .filter(ArticleSupplierPrice::isPrimary)
-                    .findFirst()
-                    .orElseGet(() -> prices.stream()
-                            .min(Comparator.comparing(ArticleSupplierPrice::getPriceHt))
-                            .orElse(prices.get(0)));
+        // A. Average Daily Consumption (ADC) = delivered quantity / observation window days
+        BigDecimal adc = deliveredQty.divide(BigDecimal.valueOf(OBSERVATION_WINDOW_DAYS), 4, RoundingMode.HALF_UP);
+
+        // B. Days of Stock Remaining (DSR)
+        Double dsr;
+        if (currentStock.compareTo(BigDecimal.ZERO) <= 0) {
+            dsr = 0.0;
+        } else if (adc.compareTo(BigDecimal.ZERO) > 0) {
+            double rawDsr = currentStock.doubleValue() / adc.doubleValue();
+            dsr = Math.round(rawDsr * 10.0) / 10.0;
+        } else {
+            dsr = null;
         }
+
+        // C. Supplier selection & Lead Time (Priority: 1. primary, 2. shortest lead time, 3. lowest price)
+        ArticleSupplierPrice chosenPrice = selectOptimalSupplierPrice(prices);
 
         Long supplierId = null;
         String supplierName = "Fournisseur non assigné";
-        BigDecimal unitPrice = article.getPurchasePriceHt();
-        Integer leadTimeDays = null;
+        BigDecimal unitPrice = article.getPurchasePriceHt() != null ? article.getPurchasePriceHt() : BigDecimal.ZERO;
+        Integer leadTimeDays;
+        boolean isLeadTimeFallback;
 
         if (chosenPrice != null) {
-            supplierId = chosenPrice.getSupplier().getId();
-            supplierName = chosenPrice.getSupplier().getName();
-            unitPrice = chosenPrice.getPriceHt();
-            leadTimeDays = chosenPrice.getLeadTimeDays();
+            if (chosenPrice.getSupplier() != null) {
+                supplierId = chosenPrice.getSupplier().getId();
+                supplierName = chosenPrice.getSupplier().getName();
+            }
+            if (chosenPrice.getPriceHt() != null) {
+                unitPrice = chosenPrice.getPriceHt();
+            }
+            if (chosenPrice.getLeadTimeDays() != null) {
+                leadTimeDays = chosenPrice.getLeadTimeDays();
+                isLeadTimeFallback = false;
+            } else {
+                leadTimeDays = DEFAULT_LEAD_TIME_DAYS;
+                isLeadTimeFallback = true;
+            }
+        } else {
+            leadTimeDays = DEFAULT_LEAD_TIME_DAYS;
+            isLeadTimeFallback = true;
         }
+
+        // D. Lead-Time Demand = ADC * leadTimeDays
+        BigDecimal leadTimeDemand = adc.multiply(BigDecimal.valueOf(leadTimeDays)).setScale(4, RoundingMode.HALF_UP);
+
+        // E. Safety Stock = max(minStockQuantity, ADC * ceil(leadTimeDays * 0.5))
+        int halfLeadTimeCeil = (int) Math.ceil(leadTimeDays * 0.5);
+        BigDecimal dynamicBuffer = adc.multiply(BigDecimal.valueOf(halfLeadTimeCeil)).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal safetyStock = minStock.max(dynamicBuffer);
+
+        // F. Reorder Point = leadTimeDemand + safetyStock
+        BigDecimal reorderPoint = leadTimeDemand.add(safetyStock).setScale(4, RoundingMode.HALF_UP);
+
+        // G. Recommended Quantity
+        BigDecimal suggestedQuantity = calculateSuggestedQuantity(currentStock, minStock, adc, reorderPoint);
+
+        // H. Risk Level Classification
+        RiskLevel level = determineRiskLevel(currentStock, minStock, adc, dsr, leadTimeDays, reorderPoint);
 
         BigDecimal estimatedBudget = suggestedQuantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
 
         String categoryName = article.getCategory() != null ? article.getCategory().getName() : null;
         String unitName = article.getUnit() != null ? article.getUnit().getName() : null;
 
-        String explanation = generateExplanation(article.getReference(), currentStock, minStock, level, suggestedQuantity, supplierName, leadTimeDays);
+        String explanation = generateExplanation(
+                currentStock, minStock, adc, dsr, leadTimeDays, isLeadTimeFallback,
+                reorderPoint, suggestedQuantity, supplierName, level
+        );
 
         return new ReorderRecommendationResponse(
                 article.getId(),
@@ -219,7 +241,10 @@ public class StockDecisionService {
                 unitName,
                 currentStock,
                 minStock,
-                riskScore,
+                adc.setScale(2, RoundingMode.HALF_UP),
+                dsr,
+                leadTimeDemand.setScale(2, RoundingMode.HALF_UP),
+                reorderPoint.setScale(2, RoundingMode.HALF_UP),
                 level,
                 suggestedQuantity,
                 supplierId,
@@ -231,37 +256,165 @@ public class StockDecisionService {
         );
     }
 
-    public BigDecimal calculateSuggestedQuantity(BigDecimal currentStock, BigDecimal minStock) {
-        if (minStock == null || minStock.compareTo(BigDecimal.ZERO) <= 0) {
-            return currentStock.compareTo(BigDecimal.ZERO) <= 0 ? BigDecimal.valueOf(10) : BigDecimal.ZERO;
+    public ArticleSupplierPrice selectOptimalSupplierPrice(List<ArticleSupplierPrice> prices) {
+        if (prices == null || prices.isEmpty()) {
+            return null;
         }
-
-        BigDecimal targetBuffer = minStock.multiply(BigDecimal.valueOf(1.5));
-        BigDecimal needed = targetBuffer.subtract(currentStock);
-
-        if (needed.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
-        }
-
-        return needed.setScale(2, RoundingMode.HALF_UP);
+        return prices.stream()
+                .sorted(Comparator
+                        .comparing((ArticleSupplierPrice p) -> p.isPrimary() ? 0 : 1)
+                        .thenComparing(p -> p.getLeadTimeDays() != null ? p.getLeadTimeDays() : Integer.MAX_VALUE)
+                        .thenComparing(p -> p.getPriceHt() != null ? p.getPriceHt() : BigDecimal.valueOf(Double.MAX_VALUE)))
+                .findFirst()
+                .orElse(null);
     }
 
-    private String generateExplanation(String ref, BigDecimal current, BigDecimal min, RiskLevel level, BigDecimal suggested, String supplier, Integer leadTime) {
-        String leadTimeStr = leadTime != null ? " Délai fournisseur estimé : " + leadTime + " jour(s)." : "";
+    public BigDecimal calculateSuggestedQuantity(
+            BigDecimal currentStock,
+            BigDecimal minStock,
+            BigDecimal adc,
+            BigDecimal reorderPoint
+    ) {
+        if (currentStock == null) currentStock = BigDecimal.ZERO;
+        if (minStock == null) minStock = BigDecimal.ZERO;
+        if (adc == null) adc = BigDecimal.ZERO;
+        if (reorderPoint == null) reorderPoint = minStock;
+
+        if (currentStock.compareTo(reorderPoint) <= 0) {
+            BigDecimal buffer14Days = adc.multiply(BigDecimal.valueOf(14)).setScale(4, RoundingMode.HALF_UP);
+            BigDecimal targetStock = reorderPoint.add(minStock.max(buffer14Days));
+            BigDecimal deficit = targetStock.subtract(currentStock);
+            if (deficit.compareTo(BigDecimal.ZERO) > 0) {
+                return BigDecimal.valueOf(Math.ceil(deficit.doubleValue())).setScale(2, RoundingMode.HALF_UP);
+            }
+        }
+        return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public RiskLevel determineRiskLevel(
+            BigDecimal currentStock,
+            BigDecimal minStock,
+            BigDecimal adc,
+            Double dsr,
+            Integer leadTimeDays,
+            BigDecimal reorderPoint
+    ) {
+        if (currentStock == null) currentStock = BigDecimal.ZERO;
+        if (minStock == null) minStock = BigDecimal.ZERO;
+        if (adc == null) adc = BigDecimal.ZERO;
+        if (leadTimeDays == null) leadTimeDays = DEFAULT_LEAD_TIME_DAYS;
+        if (reorderPoint == null) reorderPoint = minStock;
+
+        // CRITICAL: currentStock <= 0 OR (ADC > 0 AND DSR <= leadTimeDays)
+        if (currentStock.compareTo(BigDecimal.ZERO) <= 0) {
+            return RiskLevel.CRITICAL;
+        }
+        if (adc.compareTo(BigDecimal.ZERO) > 0 && dsr != null && dsr <= leadTimeDays) {
+            return RiskLevel.CRITICAL;
+        }
+
+        // HIGH: currentStock <= reorderPoint AND not CRITICAL
+        if (currentStock.compareTo(reorderPoint) <= 0) {
+            return RiskLevel.HIGH;
+        }
+
+        // MEDIUM: currentStock <= reorderPoint * 1.30 OR (minStock > 0 AND currentStock <= minStock)
+        BigDecimal mediumThreshold = reorderPoint.multiply(BigDecimal.valueOf(1.30));
+        if (currentStock.compareTo(mediumThreshold) <= 0 || (minStock.compareTo(BigDecimal.ZERO) > 0 && currentStock.compareTo(minStock) <= 0)) {
+            return RiskLevel.MEDIUM;
+        }
+
+        // LOW: otherwise
+        return RiskLevel.LOW;
+    }
+
+    public RiskLevel determineRiskLevel(Article article) {
+        BigDecimal currentStock = article.getStockQuantity() != null ? article.getStockQuantity() : BigDecimal.ZERO;
+        BigDecimal minStock = article.getMinStockQuantity() != null ? article.getMinStockQuantity() : BigDecimal.ZERO;
+        return determineRiskLevel(currentStock, minStock, BigDecimal.ZERO, null, DEFAULT_LEAD_TIME_DAYS, minStock);
+    }
+
+    private String generateExplanation(
+            BigDecimal currentStock,
+            BigDecimal minStock,
+            BigDecimal adc,
+            Double dsr,
+            Integer leadTimeDays,
+            boolean isLeadTimeFallback,
+            BigDecimal reorderPoint,
+            BigDecimal suggestedQuantity,
+            String supplierName,
+            RiskLevel level
+    ) {
+        String leadTimeSuffix = isLeadTimeFallback
+                ? " Aucun délai fournisseur exploitable. Un délai par défaut de 7 jours a été utilisé."
+                : (leadTimeDays != null ? " Délai fournisseur estimé : " + leadTimeDays + " jour(s)." : "");
+
+        if (adc.compareTo(BigDecimal.ZERO) == 0) {
+            if (currentStock.compareTo(BigDecimal.ZERO) <= 0) {
+                return "Rupture totale détectée (Stock: 0). Nouvel article ou aucun historique de vente sur la période d'analyse. Réapprovisionnement urgent recommandé de " +
+                        suggestedQuantity + " unités auprès de " + supplierName + "." + leadTimeSuffix;
+            }
+            if (currentStock.compareTo(minStock) <= 0) {
+                return "Stock actuel de " + currentStock + " unités sous le seuil minimum (" + minStock + " unités). " +
+                        "Nouvel article ou aucun historique de vente sur la période d'analyse. Recommandation basée sur le stock minimum configuré." + leadTimeSuffix;
+            }
+            return "Stock actuel de " + currentStock + " unités. Nouvel article ou aucun historique de vente sur la période d'analyse. Aucun réapprovisionnement nécessaire.";
+        }
+
+        String formattedAdc = adc.setScale(2, RoundingMode.HALF_UP).toString();
+        String formattedDsr = dsr != null ? String.valueOf(Math.round(dsr * 10.0) / 10.0) : "N/A";
+        String formattedRop = reorderPoint.setScale(1, RoundingMode.HALF_UP).toString();
+
+        if (level == RiskLevel.CRITICAL) {
+            if (currentStock.compareTo(BigDecimal.ZERO) <= 0) {
+                return "Rupture totale détectée (Stock: 0). Consommation moyenne de " + formattedAdc + " unité(s)/jour. " +
+                        "Réapprovisionnement immédiat recommandé de " + suggestedQuantity + " unités auprès de " + supplierName + "." + leadTimeSuffix;
+            }
+            return "Stock actuel de " + currentStock + " unités. Couverture estimée de " + formattedDsr + " jours, " +
+                    "inférieure au délai fournisseur de " + leadTimeDays + " jours. Une rupture est probable avant réception d'une nouvelle commande." +
+                    " Commande urgente de " + suggestedQuantity + " unités recommandée auprès de " + supplierName + "." + leadTimeSuffix;
+        } else if (level == RiskLevel.HIGH) {
+            return "Stock actuel de " + currentStock + " unités inférieur au seuil de réapprovisionnement de " + formattedRop + " unités. " +
+                    "Consommation moyenne de " + formattedAdc + " unité(s)/jour (couverture de " + formattedDsr + " jours). " +
+                    "Une commande de " + suggestedQuantity + " unités est recommandée auprès de " + supplierName + "." + leadTimeSuffix;
+        } else if (level == RiskLevel.MEDIUM) {
+            return "Stock actuel de " + currentStock + " unités proche du seuil de réapprovisionnement (" + formattedRop + " unités). " +
+                    "Consommation moyenne de " + formattedAdc + " unité(s)/jour. Surveillance recommandée." + leadTimeSuffix;
+        } else {
+            return "Stock actuel de " + currentStock + " unités. Consommation moyenne de " + formattedAdc + " unité(s)/jour. " +
+                    "Couverture estimée de " + formattedDsr + " jours. Aucun réapprovisionnement nécessaire.";
+        }
+    }
+
+    private boolean matchesFilter(ReorderRecommendationResponse rec, RiskLevel filterLevel) {
+        if (filterLevel == null) return true;
+        if (rec.riskLevel() == filterLevel) return true;
+        if (filterLevel == RiskLevel.OUT_OF_STOCK && rec.currentStock().compareTo(BigDecimal.ZERO) <= 0) {
+            return true;
+        }
+        if (filterLevel == RiskLevel.WARNING && (rec.riskLevel() == RiskLevel.HIGH || rec.riskLevel() == RiskLevel.MEDIUM)) {
+            return true;
+        }
+        if (filterLevel == RiskLevel.NORMAL && rec.riskLevel() == RiskLevel.LOW) {
+            return true;
+        }
+        return false;
+    }
+
+    private Comparator<ReorderRecommendationResponse> getRiskComparator() {
+        return Comparator
+                .comparing((ReorderRecommendationResponse r) -> riskPriority(r.riskLevel()))
+                .thenComparing(r -> r.daysOfStockRemaining() != null ? r.daysOfStockRemaining() : Double.MAX_VALUE)
+                .thenComparing(r -> r.currentStock());
+    }
+
+    private int riskPriority(RiskLevel level) {
         return switch (level) {
-            case OUT_OF_STOCK -> String.format(
-                    "Rupture totale détectée (Stock: 0). Seuil min: %s. Réapprovisionnement urgent recommandé de %s unités auprès de %s.%s",
-                    min, suggested, supplier, leadTimeStr
-            );
-            case CRITICAL -> String.format(
-                    "Stock critique (Stock: %s, Seuil min: %s). Couverture inférieure à 33%% du seuil de sécurité. Commande suggérée de %s unités.%s",
-                    current, min, suggested, leadTimeStr
-            );
-            case WARNING -> String.format(
-                    "Stock sous le seuil minimum (Stock: %s, Seuil: %s). Réapprovisionnement préventif recommandé de %s unités.%s",
-                    current, min, suggested, leadTimeStr
-            );
-            case NORMAL -> "Niveau de stock optimal. Aucun réapprovisionnement nécessaire.";
+            case CRITICAL, OUT_OF_STOCK -> 0;
+            case HIGH -> 1;
+            case MEDIUM, WARNING -> 2;
+            case LOW, NORMAL -> 3;
         };
     }
 }

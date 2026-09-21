@@ -406,7 +406,14 @@ export interface MonthlySalesEvolution {
 }
 
 // ---- Intelligent Decision Support ----
-export type RiskLevel = "OUT_OF_STOCK" | "CRITICAL" | "WARNING" | "NORMAL";
+export type RiskLevel =
+  | "CRITICAL"
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW"
+  | "OUT_OF_STOCK"
+  | "WARNING"
+  | "NORMAL";
 
 export interface ReorderRecommendationResponse {
   articleId: number;
@@ -416,7 +423,11 @@ export interface ReorderRecommendationResponse {
   unitName: string | null;
   currentStock: number;
   minStockQuantity: number;
-  riskScore: number;
+  averageDailyConsumption?: number | null;
+  daysOfStockRemaining?: number | null;
+  expectedNearTermDemand?: number | null;
+  reorderPoint?: number | null;
+  riskScore?: number;
   riskLevel: RiskLevel;
   suggestedQuantity: number;
   recommendedSupplierId: number | null;
@@ -431,9 +442,11 @@ export interface StockRiskSummaryResponse {
   totalArticlesAtRisk: number;
   outOfStockCount: number;
   criticalCount: number;
+  highCount?: number;
+  mediumCount?: number;
   warningCount: number;
   totalEstimatedReorderBudget: number;
-  averageRiskScore: number;
+  averageRiskScore?: number;
 }
 
 // ---- Sales Orders ----

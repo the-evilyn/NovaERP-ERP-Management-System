@@ -36,4 +36,11 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
     @Query("SELECT so FROM SaleOrder so LEFT JOIN FETCH so.client WHERE (:status IS NULL OR so.status = :status) AND (:clientId IS NULL OR so.client.id = :clientId) ORDER BY so.createdAt DESC")
     List<SaleOrder> findWithFiltersList(@Param("status") SaleOrderStatus status,
                                         @Param("clientId") Long clientId);
+
+    @Query("SELECT soi.article.id, SUM(soi.quantity) " +
+           "FROM SaleOrderItem soi JOIN soi.saleOrder so " +
+           "WHERE so.status = com.novaerp.backend.sales.SaleOrderStatus.DELIVERED " +
+           "AND COALESCE(so.deliveredAt, so.createdAt) >= :since " +
+           "GROUP BY soi.article.id")
+    List<Object[]> sumDeliveredQuantitiesByArticleSince(@Param("since") Instant since);
 }

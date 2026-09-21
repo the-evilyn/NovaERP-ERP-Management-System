@@ -1,8 +1,13 @@
 package com.novaerp.backend.decision;
 
 public enum RiskLevel {
-    OUT_OF_STOCK,
     CRITICAL,
+    HIGH,
+    MEDIUM,
+    LOW,
+
+    // Legacy values preserved for backward-compatible API queries
+    OUT_OF_STOCK,
     WARNING,
     NORMAL
 }

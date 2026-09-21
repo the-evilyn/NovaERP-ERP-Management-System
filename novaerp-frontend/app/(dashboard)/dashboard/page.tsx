@@ -3,6 +3,7 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AiBrain01Icon,
+  AlertDiamondIcon,
   Exchange02Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
@@ -55,22 +56,24 @@ const movementLabel: Record<StockMovementType, string> = {
   ADJUSTMENT: "Ajustement",
 };
 
-function RiskBadge({
-  level,
-  score,
-}: {
-  level: RiskLevel;
-  score: number;
-}): React.ReactElement {
+function RiskBadge({ level }: { level: RiskLevel }): React.ReactElement {
   switch (level) {
-    case "OUT_OF_STOCK":
-      return <Badge variant="destructive">Rupture (100%)</Badge>;
     case "CRITICAL":
-      return <Badge variant="error">Critique ({Math.round(score)}%)</Badge>;
+    case "OUT_OF_STOCK":
+      return <Badge variant="destructive">Critique</Badge>;
+    case "HIGH":
+      return (
+        <Badge variant="error" className="border border-destructive/25 font-semibold">
+          Élevé
+        </Badge>
+      );
+    case "MEDIUM":
     case "WARNING":
-      return <Badge variant="warning">Faible ({Math.round(score)}%)</Badge>;
+      return <Badge variant="warning">Moyen</Badge>;
+    case "LOW":
     case "NORMAL":
-      return <Badge variant="success">Normal</Badge>;
+    default:
+      return <Badge variant="success">Faible</Badge>;
   }
 }
 
@@ -204,6 +207,24 @@ export default function DashboardPage(): React.ReactElement {
         />
       </div>
 
+      {/* Smart Stock Intelligence Alert Banner */}
+      {recommendationsPage && recommendationsPage.content.some((r) => r.riskLevel === "CRITICAL" || r.currentStock <= 0) && (
+        <div className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/8 p-4 text-sm text-destructive-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-destructive/15 p-2 text-destructive shrink-0">
+              <HugeiconsIcon icon={AlertDiamondIcon} size={20} strokeWidth={2} />
+            </div>
+            <div>
+              <span className="font-semibold">Alerte Réapprovisionnement Critique :</span>{" "}
+              Des articles sont en rupture immédiate ou ont une couverture inférieure au délai fournisseur. Une commande urgente est recommandée.
+            </div>
+          </div>
+          <Button variant="outline" size="sm" render={<Link href="/decisions" />}>
+            Traiter les alertes
+          </Button>
+        </div>
+      )}
+
       {/* Decision Support Reorder Alert Card */}
       <CardFrame className="border-amber-500/20 bg-gradient-to-r from-amber-500/[0.03] to-transparent">
         <CardFrameHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -216,7 +237,7 @@ export default function DashboardPage(): React.ReactElement {
                 Aide à la Décision : Alertes Prioritaires de Réapprovisionnement
               </CardFrameTitle>
               <CardFrameDescription>
-                Articles critiques nécessitant une commande immédiate pour éviter un arrêt de production
+                Articles prioritaires nécessitant une commande selon la consommation réelle et les délais fournisseurs
               </CardFrameDescription>
             </div>
           </div>
@@ -229,10 +250,12 @@ export default function DashboardPage(): React.ReactElement {
           <TableHeader>
             <TableRow>
               <TableHead>Article</TableHead>
-              <TableHead>Stock / Seuil</TableHead>
-              <TableHead>Niveau de risque</TableHead>
+              <TableHead>Stock / Min</TableHead>
+              <TableHead className="text-right">Conso moy.</TableHead>
+              <TableHead className="text-right">Couverture</TableHead>
+              <TableHead>Risque</TableHead>
               <TableHead className="text-right">Qté suggérée</TableHead>
-              <TableHead>Fournisseur recommandé</TableHead>
+              <TableHead>Fournisseur optimal</TableHead>
               {isAdmin && <TableHead className="text-right">Budget estimé</TableHead>}
               {isAdmin && <TableHead className="text-right">Action</TableHead>}
             </TableRow>
@@ -241,7 +264,7 @@ export default function DashboardPage(): React.ReactElement {
             {isRecsPending &&
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={isAdmin ? 7 : 5}>
+                  <TableCell colSpan={isAdmin ? 9 : 7}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
@@ -249,60 +272,85 @@ export default function DashboardPage(): React.ReactElement {
 
             {!isRecsPending && recommendationsPage?.content.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 5} className="h-20 text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 9 : 7} className="h-20 text-center text-muted-foreground">
                   Aucun article en rupture ou critique détecté. Le stock est optimal.
                 </TableCell>
               </TableRow>
             )}
 
-            {recommendationsPage?.content.map((rec) => (
-              <TableRow key={rec.articleId}>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{rec.designation}</span>
-                    <span className="text-muted-foreground text-xs">
-                      Réf: {rec.articleReference}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className={rec.currentStock === 0 ? "font-semibold text-destructive" : ""}>
-                    {rec.currentStock} / {rec.minStockQuantity}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <RiskBadge level={rec.riskLevel} score={rec.riskScore} />
-                </TableCell>
-                <TableCell className="text-right font-semibold">
-                  +{rec.suggestedQuantity} {rec.unitName ?? ""}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {rec.recommendedSupplierName}
-                  {rec.leadTimeDays && (
-                    <span className="ml-1 text-muted-foreground text-xs">
-                      ({rec.leadTimeDays}j)
-                    </span>
-                  )}
-                </TableCell>
-                {isAdmin && (
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(rec.estimatedBudget)}
+            {recommendationsPage?.content.map((rec) => {
+              const hasZeroStock = rec.currentStock <= 0;
+              const dsrLabel = hasZeroStock
+                ? "0 j (Rupture)"
+                : rec.daysOfStockRemaining != null
+                  ? `${rec.daysOfStockRemaining} j`
+                  : "—";
+
+              return (
+                <TableRow key={rec.articleId}>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{rec.designation}</span>
+                      <span className="text-muted-foreground text-xs">
+                        Réf: {rec.articleReference}
+                      </span>
+                    </div>
                   </TableCell>
-                )}
-                {isAdmin && (
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedRecommendation(rec)}
+                  <TableCell>
+                    <span className={hasZeroStock ? "font-semibold text-destructive" : ""}>
+                      {rec.currentStock} / {rec.minStockQuantity}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right text-sm">
+                    {rec.averageDailyConsumption != null
+                      ? `${rec.averageDailyConsumption} /j`
+                      : "0 /j"}
+                  </TableCell>
+                  <TableCell className="text-right text-sm">
+                    <span
+                      className={
+                        hasZeroStock ||
+                        (rec.daysOfStockRemaining != null &&
+                          rec.daysOfStockRemaining <= (rec.leadTimeDays ?? 7))
+                          ? "font-semibold text-destructive"
+                          : ""
+                      }
                     >
-                      <HugeiconsIcon icon={Exchange02Icon} strokeWidth={2} />
-                      Commander
-                    </Button>
+                      {dsrLabel}
+                    </span>
                   </TableCell>
-                )}
-              </TableRow>
-            ))}
+                  <TableCell>
+                    <RiskBadge level={rec.riskLevel} />
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    +{rec.suggestedQuantity} {rec.unitName ?? ""}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {rec.recommendedSupplierName}
+                    <span className="ml-1 text-muted-foreground text-xs">
+                      ({rec.leadTimeDays != null ? `${rec.leadTimeDays}j` : "7j"})
+                    </span>
+                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(rec.estimatedBudget)}
+                    </TableCell>
+                  )}
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedRecommendation(rec)}
+                      >
+                        <HugeiconsIcon icon={Exchange02Icon} strokeWidth={2} />
+                        Commander
+                      </Button>
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardFrame>
