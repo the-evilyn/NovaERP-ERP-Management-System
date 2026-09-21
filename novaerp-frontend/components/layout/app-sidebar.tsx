@@ -66,7 +66,6 @@ const navMain: NavMainItem[] = [
 ];
 
 const ADMIN_ONLY_ROUTES = [
-  "/sales",
   "/purchases",
   "/invoices",
   "/payments",

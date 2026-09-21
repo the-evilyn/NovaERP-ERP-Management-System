@@ -105,12 +105,23 @@ class SecurityAuthorizationTest {
     }
 
     @Test
-    @DisplayName("ROLE_USER cannot POST to /api/sales/orders (403 Forbidden)")
+    @DisplayName("ROLE_USER can access POST /api/sales/orders (not 403 Forbidden)")
     @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
-    void testUserRole_CannotPostSaleOrder() throws Exception {
+    void testUserRole_CanPostSaleOrder() throws Exception {
         mockMvc.perform(post("/api/sales/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"clientId\":1,\"items\":[]}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
+
+    @Test
+    @DisplayName("ROLE_USER cannot POST to /api/sales/orders/1/confirm (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotConfirmSaleOrder() throws Exception {
+        mockMvc.perform(post("/api/sales/orders/1/confirm"))
                 .andExpect(status().isForbidden());
     }
 

@@ -6,20 +6,16 @@ import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useAuth } from "@/providers/auth-provider";
 import { useSaleOrders } from "@/hooks/use-sales";
 import { formatCurrency } from "@/lib/formatters";
 import { CreateSalesOrderDialog } from "@/components/sales/create-sales-order-dialog";
 import { SalesOrderTable } from "@/components/sales/sales-order-table";
 
 export default function SalesPage(): React.ReactElement {
-  const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const { data } = useSaleOrders(0, 100);
   const orders = data?.content ?? [];
-
-  const isAdmin = user?.role === "ADMIN";
 
   // KPIs
   const totalOrders = data?.totalElements ?? orders.length;
@@ -40,15 +36,13 @@ export default function SalesPage(): React.ReactElement {
           </p>
         </div>
 
-        {isAdmin && (
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            className="gap-2 self-start sm:self-auto"
-          >
-            <HugeiconsIcon icon={Add01Icon} className="size-4" />
-            Nouvelle commande
-          </Button>
-        )}
+        <Button
+          onClick={() => setCreateDialogOpen(true)}
+          className="gap-2 self-start sm:self-auto"
+        >
+          <HugeiconsIcon icon={Add01Icon} className="size-4" />
+          Créer une commande
+        </Button>
       </div>
 
       {/* KPI Cards */}
