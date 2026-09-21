@@ -1,5 +1,23 @@
 package com.novaerp.backend.config;
 
+import com.novaerp.backend.client.Client;
+import com.novaerp.backend.client.ClientRepository;
+import com.novaerp.backend.invoices.CustomerInvoice;
+import com.novaerp.backend.invoices.CustomerInvoiceItem;
+import com.novaerp.backend.invoices.CustomerInvoiceRepository;
+import com.novaerp.backend.invoices.CustomerInvoiceStatus;
+import com.novaerp.backend.payments.Payment;
+import com.novaerp.backend.payments.PaymentMethod;
+import com.novaerp.backend.payments.PaymentRepository;
+import com.novaerp.backend.payments.PaymentType;
+import com.novaerp.backend.purchases.PurchaseOrder;
+import com.novaerp.backend.purchases.PurchaseOrderItem;
+import com.novaerp.backend.purchases.PurchaseOrderRepository;
+import com.novaerp.backend.purchases.PurchaseOrderStatus;
+import com.novaerp.backend.sales.SaleOrder;
+import com.novaerp.backend.sales.SaleOrderItem;
+import com.novaerp.backend.sales.SaleOrderRepository;
+import com.novaerp.backend.sales.SaleOrderStatus;
 import com.novaerp.backend.stock.*;
 import com.novaerp.backend.user.Role;
 import com.novaerp.backend.user.User;
@@ -13,6 +31,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +59,12 @@ public class DataSeeder implements CommandLineRunner {
     private final WarehouseRepository warehouseRepository;
     private final WarehouseLocationRepository warehouseLocationRepository;
     private final WarehouseStockRepository warehouseStockRepository;
+    private final ClientRepository clientRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
+    private final SaleOrderRepository saleOrderRepository;
+    private final CustomerInvoiceRepository customerInvoiceRepository;
+    private final PaymentRepository paymentRepository;
+    private final StockTransferRepository stockTransferRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -60,8 +86,17 @@ public class DataSeeder implements CommandLineRunner {
         seedArticleSupplierPrices(articles, suppliers);
         seedStockMovements(articles, users);
 
-        log.info("Seed data created: {} users, {} categories, {} units, {} suppliers, {} articles",
-                users.size(), categories.size(), units.size(), suppliers.size(), articles.size());
+        List<Client> clients = seedClients();
+        List<PurchaseOrder> purchaseOrders = seedPurchaseOrders(suppliers, articles, users);
+        List<SaleOrder> saleOrders = seedSaleOrders(clients, articles, users);
+        List<CustomerInvoice> customerInvoices = seedCustomerInvoices(clients, saleOrders, users);
+        List<Payment> customerPayments = seedCustomerPayments(customerInvoices, users);
+        seedStockTransfers(articles, users);
+
+        log.info("Seed data created: {} users, {} categories, {} units, {} suppliers, {} articles, " +
+                "{} clients, {} purchase orders, {} sale orders, {} customer invoices, {} payments",
+                users.size(), categories.size(), units.size(), suppliers.size(), articles.size(),
+                clients.size(), purchaseOrders.size(), saleOrders.size(), customerInvoices.size(), customerPayments.size());
     }
 
     private List<User> seedUsers() {
@@ -508,5 +543,348 @@ public class DataSeeder implements CommandLineRunner {
                         .build()
         );
         stockMovementRepository.saveAll(movements);
+    }
+
+    private List<Client> seedClients() {
+        List<Client> clients = List.of(
+                Client.builder()
+                        .name("Centrale BTP & Logistique SARL")
+                        .email("contact@centrale-btp.ma")
+                        .phone("+212522245678")
+                        .address("125 Boulevard Abdelmoumen, 4ème étage")
+                        .city("Casablanca")
+                        .taxNumber("IF-28491032")
+                        .notes("Grand compte BTP et fournitures industrielles")
+                        .build(),
+                Client.builder()
+                        .name("Maghreb Solutions Informatiques")
+                        .email("achats@maghrebsolutions.ma")
+                        .phone("+212537684321")
+                        .address("45 Avenue Fal Ould Oumeir, Agdal")
+                        .city("Rabat")
+                        .taxNumber("IF-49201834")
+                        .notes("Intégrateur IT & Réseaux d'entreprise")
+                        .build(),
+                Client.builder()
+                        .name("Tanger Logistique Express")
+                        .email("logistique@tanger-express.ma")
+                        .phone("+212539345678")
+                        .address("Zone Franche d'Exportation, Ilot 12")
+                        .city("Tanger")
+                        .taxNumber("IF-67123984")
+                        .notes("Opérateur logistique régional zone Nord")
+                        .build()
+        );
+        return clientRepository.saveAll(clients);
+    }
+
+    private List<PurchaseOrder> seedPurchaseOrders(List<Supplier> suppliers, List<Article> articles, List<User> users) {
+        User admin = users.get(0);
+        User sara = users.get(1);
+        Warehouse warehouse = resolveDefaultWarehouse();
+        WarehouseLocation location = resolveDefaultLocation(warehouse);
+
+        Supplier techImport = suppliers.get(1);
+        Supplier maghrebOffice = suppliers.get(2);
+
+        Instant now = Instant.now();
+
+        // 1. PO-2026-0001: RECEIVED (matches initial intake movement PO-2026-0001 of 200 units of ELEC-0001)
+        PurchaseOrder po1 = PurchaseOrder.builder()
+                .orderNumber("PO-2026-0001")
+                .supplier(techImport)
+                .warehouse(warehouse)
+                .location(location)
+                .status(PurchaseOrderStatus.RECEIVED)
+                .subtotalHt(new BigDecimal("17000.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .taxAmount(new BigDecimal("3400.0000"))
+                .totalTtc(new BigDecimal("20400.0000"))
+                .notes("Approvisionnement initial souris sans fil - Réceptionné conforme")
+                .createdBy(admin)
+                .createdAt(now.minus(Duration.ofDays(15)))
+                .confirmedAt(now.minus(Duration.ofDays(14)))
+                .receivedAt(now.minus(Duration.ofDays(10)))
+                .items(new ArrayList<>())
+                .build();
+
+        po1.addItem(PurchaseOrderItem.builder()
+                .article(articles.get(0))
+                .quantity(new BigDecimal("200.0000"))
+                .unitPrice(new BigDecimal("85.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("17000.0000"))
+                .totalTtc(new BigDecimal("20400.0000"))
+                .build());
+
+        // 2. PO-2026-0101: CONFIRMED (in transit / pending reception)
+        PurchaseOrder po2 = PurchaseOrder.builder()
+                .orderNumber("PO-2026-0101")
+                .supplier(maghrebOffice)
+                .warehouse(warehouse)
+                .location(location)
+                .status(PurchaseOrderStatus.CONFIRMED)
+                .subtotalHt(new BigDecimal("3500.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .taxAmount(new BigDecimal("700.0000"))
+                .totalTtc(new BigDecimal("4200.0000"))
+                .notes("Commande réapprovisionnement papier A4 - En cours d'acheminement")
+                .createdBy(sara)
+                .createdAt(now.minus(Duration.ofDays(3)))
+                .confirmedAt(now.minus(Duration.ofDays(2)))
+                .items(new ArrayList<>())
+                .build();
+
+        po2.addItem(PurchaseOrderItem.builder()
+                .article(articles.get(4))
+                .quantity(new BigDecimal("100.0000"))
+                .unitPrice(new BigDecimal("35.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("3500.0000"))
+                .totalTtc(new BigDecimal("4200.0000"))
+                .build());
+
+        return purchaseOrderRepository.saveAll(List.of(po1, po2));
+    }
+
+    private List<SaleOrder> seedSaleOrders(List<Client> clients, List<Article> articles, List<User> users) {
+        User sara = users.get(1);
+        Warehouse warehouse = resolveDefaultWarehouse();
+        WarehouseLocation location = resolveDefaultLocation(warehouse);
+
+        Instant now = Instant.now();
+
+        // 1. SO-2026-0010: DELIVERED (matches customer order fulfillment SO-2026-0010 of 50 units of ELEC-0001)
+        SaleOrder soDelivered = SaleOrder.builder()
+                .orderNumber("SO-2026-0010")
+                .client(clients.get(0))
+                .warehouse(warehouse)
+                .location(location)
+                .status(SaleOrderStatus.DELIVERED)
+                .subtotalHt(new BigDecimal("6450.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .taxAmount(new BigDecimal("1290.0000"))
+                .totalTtc(new BigDecimal("7740.0000"))
+                .notes("Équipement informatique postes de travail - Livré et réceptionné client")
+                .createdBy(sara)
+                .createdAt(now.minus(Duration.ofDays(7)))
+                .confirmedAt(now.minus(Duration.ofDays(6)))
+                .deliveredAt(now.minus(Duration.ofDays(3)))
+                .items(new ArrayList<>())
+                .build();
+
+        soDelivered.addItem(SaleOrderItem.builder()
+                .article(articles.get(0))
+                .quantity(new BigDecimal("50.0000"))
+                .unitPrice(new BigDecimal("129.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("6450.0000"))
+                .totalTtc(new BigDecimal("7740.0000"))
+                .build());
+
+        // 2. SO-2026-0020: DRAFT (pending commercial quote)
+        SaleOrder soDraft = SaleOrder.builder()
+                .orderNumber("SO-2026-0020")
+                .client(clients.get(1))
+                .warehouse(warehouse)
+                .location(location)
+                .status(SaleOrderStatus.DRAFT)
+                .subtotalHt(new BigDecimal("6093.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .taxAmount(new BigDecimal("1218.6000"))
+                .totalTtc(new BigDecimal("7311.6000"))
+                .notes("Devis pour claviers mécaniques et switch Gigabit")
+                .createdBy(sara)
+                .createdAt(now.minus(Duration.ofDays(1)))
+                .items(new ArrayList<>())
+                .build();
+
+        soDraft.addItem(SaleOrderItem.builder()
+                .article(articles.get(1))
+                .quantity(new BigDecimal("5.0000"))
+                .unitPrice(new BigDecimal("499.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("2495.0000"))
+                .totalTtc(new BigDecimal("2994.0000"))
+                .build());
+
+        soDraft.addItem(SaleOrderItem.builder()
+                .article(articles.get(2))
+                .quantity(new BigDecimal("2.0000"))
+                .unitPrice(new BigDecimal("1799.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("3598.0000"))
+                .totalTtc(new BigDecimal("4317.6000"))
+                .build());
+
+        return saleOrderRepository.saveAll(List.of(soDelivered, soDraft));
+    }
+
+    private List<CustomerInvoice> seedCustomerInvoices(List<Client> clients, List<SaleOrder> saleOrders, List<User> users) {
+        User sara = users.get(1);
+        SaleOrder soDelivered = saleOrders.get(0);
+        Instant now = Instant.now();
+
+        CustomerInvoice invoice = CustomerInvoice.builder()
+                .invoiceNumber("FAC-2026-0001")
+                .client(clients.get(0))
+                .saleOrder(soDelivered)
+                .status(CustomerInvoiceStatus.ISSUED)
+                .subtotalHt(new BigDecimal("6450.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .taxAmount(new BigDecimal("1290.0000"))
+                .totalTtc(new BigDecimal("7740.0000"))
+                .notes("Facture relative à la commande SO-2026-0010")
+                .createdBy(sara)
+                .createdAt(now.minus(Duration.ofDays(3)))
+                .issuedAt(now.minus(Duration.ofDays(2)))
+                .items(new ArrayList<>())
+                .build();
+
+        invoice.addItem(CustomerInvoiceItem.builder()
+                .article(soDelivered.getItems().get(0).getArticle())
+                .quantity(new BigDecimal("50.0000"))
+                .unitPrice(new BigDecimal("129.0000"))
+                .taxRate(new BigDecimal("20.00"))
+                .totalHt(new BigDecimal("6450.0000"))
+                .totalTtc(new BigDecimal("7740.0000"))
+                .build());
+
+        return customerInvoiceRepository.saveAll(List.of(invoice));
+    }
+
+    private List<Payment> seedCustomerPayments(List<CustomerInvoice> customerInvoices, List<User> users) {
+        User sara = users.get(1);
+        CustomerInvoice invoice = customerInvoices.get(0);
+        Instant now = Instant.now();
+
+        Payment payment = Payment.builder()
+                .paymentNumber("PAY-2026-0001")
+                .paymentType(PaymentType.CUSTOMER_PAYMENT)
+                .customerInvoice(invoice)
+                .paymentMethod(PaymentMethod.BANK_TRANSFER)
+                .amount(new BigDecimal("4000.0000"))
+                .referenceNumber("VIR-BMCE-992014")
+                .paymentDate(now.minus(Duration.ofDays(1)))
+                .createdAt(now.minus(Duration.ofDays(1)))
+                .createdBy(sara)
+                .notes("Acompte client 4 000 MAD reçu par virement bancaire BMCE")
+                .build();
+
+        return paymentRepository.saveAll(List.of(payment));
+    }
+
+    private Warehouse resolveOrSeedSecondaryWarehouse() {
+        return warehouseRepository.findByCode("WH-NORTH")
+                .orElseGet(() -> warehouseRepository.save(Warehouse.builder()
+                        .code("WH-NORTH")
+                        .name("Entrepôt Régional Tanger")
+                        .description("Hub logistique Zone Franche Tanger Med")
+                        .address("Zone Franche, Tanger")
+                        .active(true)
+                        .isDefault(false)
+                        .build()));
+    }
+
+    private WarehouseLocation resolveOrSeedSecondaryLocation(Warehouse warehouse) {
+        return warehouseLocationRepository.findByWarehouseIdAndCode(warehouse.getId(), "LOC-NORTH-01")
+                .orElseGet(() -> warehouseLocationRepository.save(WarehouseLocation.builder()
+                        .warehouse(warehouse)
+                        .code("LOC-NORTH-01")
+                        .name("Zone Principale Tanger")
+                        .description("Zone de stockage générale Tanger")
+                        .active(true)
+                        .isDefault(true)
+                        .build()));
+    }
+
+    private StockTransfer seedStockTransfers(List<Article> articles, List<User> users) {
+        Warehouse srcWarehouse = resolveDefaultWarehouse();
+        if (srcWarehouse == null) {
+            log.warn("Default warehouse WH-MAIN not found; skipping stock transfer seeding");
+            return null;
+        }
+
+        WarehouseLocation srcLocation = resolveDefaultLocation(srcWarehouse);
+        if (srcLocation == null) {
+            log.warn("Default location LOC-GEN not found; skipping stock transfer seeding");
+            return null;
+        }
+
+        Warehouse dstWarehouse = resolveOrSeedSecondaryWarehouse();
+        WarehouseLocation dstLocation = resolveOrSeedSecondaryLocation(dstWarehouse);
+
+        User admin = users.get(0);
+        Article articleToTransfer = articles.get(0);
+        BigDecimal transferQty = new BigDecimal("10.0000");
+
+        // 1. Adjust source warehouse stock (-10)
+        warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(
+                articleToTransfer.getId(), srcWarehouse.getId(), srcLocation.getId())
+                .ifPresent(srcStock -> {
+                    srcStock.setQuantity(srcStock.getQuantity().subtract(transferQty));
+                    warehouseStockRepository.save(srcStock);
+                });
+
+        // 2. Adjust or create destination warehouse stock (+10)
+        WarehouseStock dstStock = warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(
+                articleToTransfer.getId(), dstWarehouse.getId(), dstLocation.getId())
+                .orElseGet(() -> WarehouseStock.builder()
+                        .article(articleToTransfer)
+                        .warehouse(dstWarehouse)
+                        .location(dstLocation)
+                        .quantity(BigDecimal.ZERO)
+                        .minQuantity(BigDecimal.ZERO)
+                        .build());
+        dstStock.setQuantity(dstStock.getQuantity().add(transferQty));
+        warehouseStockRepository.save(dstStock);
+
+        // 3. Record linked OUT and IN movements for transfer ledger
+        StockMovement outMovement = StockMovement.builder()
+                .article(articleToTransfer)
+                .type(StockMovementType.OUT)
+                .quantity(transferQty)
+                .reference("TRF-2026-0001")
+                .note("Transfert vers " + dstWarehouse.getCode() + "/" + dstLocation.getCode())
+                .warehouse(srcWarehouse)
+                .location(srcLocation)
+                .createdBy(admin)
+                .build();
+
+        StockMovement inMovement = StockMovement.builder()
+                .article(articleToTransfer)
+                .type(StockMovementType.IN)
+                .quantity(transferQty)
+                .reference("TRF-2026-0001")
+                .note("Transfert depuis " + srcWarehouse.getCode() + "/" + srcLocation.getCode())
+                .warehouse(dstWarehouse)
+                .location(dstLocation)
+                .createdBy(admin)
+                .build();
+
+        stockMovementRepository.saveAll(List.of(outMovement, inMovement));
+
+        // 4. Save COMPLETED StockTransfer
+        Instant transferTime = Instant.now().minus(Duration.ofDays(4));
+        StockTransfer transfer = StockTransfer.builder()
+                .transferNumber("TRF-2026-0001")
+                .sourceWarehouse(srcWarehouse)
+                .sourceLocation(srcLocation)
+                .destinationWarehouse(dstWarehouse)
+                .destinationLocation(dstLocation)
+                .status(StockTransferStatus.COMPLETED)
+                .notes("Transfert de réapprovisionnement vers l'antenne Tanger")
+                .createdBy(admin)
+                .createdAt(transferTime)
+                .completedAt(transferTime)
+                .items(new ArrayList<>())
+                .build();
+
+        transfer.addItem(StockTransferItem.builder()
+                .article(articleToTransfer)
+                .quantity(transferQty)
+                .build());
+
+        return stockTransferRepository.save(transfer);
     }
 }
