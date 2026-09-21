@@ -15,7 +15,7 @@ const ADMIN_ONLY_ROUTES = [
   '/invoices',
   '/payments',
   '/warehouses',
-  '/stock/transfers',
+  '/stock/transfers/new',
 ];
 
 export default function DashboardLayout({ children }: LayoutProps<'/'>) {
@@ -23,9 +23,11 @@ export default function DashboardLayout({ children }: LayoutProps<'/'>) {
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
 
-  const isAdminOnlyRoute = ADMIN_ONLY_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
+  const isAdminOnlyRoute =
+    ADMIN_ONLY_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    ) ||
+    (pathname.startsWith('/stock/transfers/') && pathname.endsWith('/edit'));
 
   useEffect(() => {
     if (!isLoading) {

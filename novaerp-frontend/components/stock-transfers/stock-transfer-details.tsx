@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/providers/auth-provider";
 import {
   useCancelStockTransfer,
   useCompleteStockTransfer,
@@ -38,6 +39,8 @@ export function StockTransferDetails({
   id,
 }: StockTransferDetailsProps): React.ReactElement {
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   const { data: transfer, isLoading, isError } = useStockTransfer(id);
 
@@ -105,14 +108,16 @@ export function StockTransferDetails({
 
   return (
     <div className="space-y-6">
-      {/* Action Dialog */}
-      <TransferConfirmationDialog
-        transfer={transfer}
-        action={dialogAction}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onConfirm={handleConfirmAction}
-      />
+      {/* Action Dialog (ADMIN only) */}
+      {isAdmin && (
+        <TransferConfirmationDialog
+          transfer={transfer}
+          action={dialogAction}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onConfirm={handleConfirmAction}
+        />
+      )}
 
       {/* Header and Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -140,7 +145,7 @@ export function StockTransferDetails({
 
         {/* Actions Bar for DRAFT */}
         <div className="flex flex-wrap items-center gap-2">
-          {isDraft && (
+          {isAdmin && isDraft && (
             <>
               <Button
                 variant="outline"
@@ -183,7 +188,7 @@ export function StockTransferDetails({
             </>
           )}
 
-          {!isDraft && (
+          {(!isAdmin || !isDraft) && (
             <Button
               variant="outline"
               size="sm"

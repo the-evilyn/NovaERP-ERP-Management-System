@@ -11,7 +11,7 @@ const ADMIN_ONLY_ROUTES = [
   '/invoices',
   '/payments',
   '/warehouses',
-  '/stock/transfers',
+  '/stock/transfers/new',
 ];
 
 function extractRoleFromToken(token: string): string | null {
@@ -48,9 +48,11 @@ export function proxy(request: NextRequest) {
   }
 
   if (hasToken) {
-    const isAdminRoute = ADMIN_ONLY_ROUTES.some(
-      (route) => pathname === route || pathname.startsWith(`${route}/`)
-    );
+    const isAdminRoute =
+      ADMIN_ONLY_ROUTES.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`)
+      ) ||
+      (pathname.startsWith('/stock/transfers/') && pathname.endsWith('/edit'));
 
     if (isAdminRoute) {
       const role =

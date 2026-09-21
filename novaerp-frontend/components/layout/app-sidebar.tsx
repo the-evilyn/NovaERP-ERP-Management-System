@@ -65,7 +65,6 @@ const ADMIN_ONLY_ROUTES = [
   "/invoices",
   "/payments",
   "/warehouses",
-  "/stock/transfers",
   "/import-export",
 ];
 
