@@ -27,19 +27,67 @@ public class StockDecisionService {
 
     @Transactional(readOnly = true)
     public Page<ReorderRecommendationResponse> getRecommendations(RiskLevel filterLevel, Pageable pageable) {
-        Page<Article> articlesPage = articleRepository.findAtRiskArticles(pageable);
-        List<Long> articleIds = articlesPage.getContent().stream().map(Article::getId).toList();
+        if (filterLevel == null) {
+            Page<Article> articlesPage = articleRepository.findAtRiskArticles(pageable);
+            List<Long> articleIds = articlesPage.getContent().stream().map(Article::getId).toList();
 
+            Map<Long, List<ArticleSupplierPrice>> pricesByArticle = supplierPriceRepository.findByArticleIdIn(articleIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(p -> p.getArticle().getId()));
+
+            List<ReorderRecommendationResponse> recommendations = articlesPage.getContent().stream()
+                    .map(article -> buildRecommendation(article, pricesByArticle.getOrDefault(article.getId(), Collections.emptyList())))
+                    .toList();
+
+            return new PageImpl<>(recommendations, pageable, articlesPage.getTotalElements());
+        }
+
+        List<Article> allAtRisk = articleRepository.findAllAtRiskArticles();
+        List<Article> matchingArticles = allAtRisk.stream()
+                .filter(a -> determineRiskLevel(a) == filterLevel)
+                .sorted(Comparator.comparing(
+                        (Article a) -> a.getStockQuantity().compareTo(BigDecimal.ZERO) <= 0 ? 0 : 1
+                ).thenComparing(a -> {
+                    BigDecimal min = a.getMinStockQuantity();
+                    if (min == null || min.compareTo(BigDecimal.ZERO) <= 0) return 0.0;
+                    return a.getStockQuantity().doubleValue() / min.doubleValue();
+                }))
+                .toList();
+
+        long total = matchingArticles.size();
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), (int) total);
+        List<Article> pageArticles = (start <= total) ? matchingArticles.subList(start, end) : Collections.emptyList();
+
+        List<Long> articleIds = pageArticles.stream().map(Article::getId).toList();
         Map<Long, List<ArticleSupplierPrice>> pricesByArticle = supplierPriceRepository.findByArticleIdIn(articleIds)
                 .stream()
                 .collect(Collectors.groupingBy(p -> p.getArticle().getId()));
 
-        List<ReorderRecommendationResponse> recommendations = articlesPage.getContent().stream()
+        List<ReorderRecommendationResponse> recommendations = pageArticles.stream()
                 .map(article -> buildRecommendation(article, pricesByArticle.getOrDefault(article.getId(), Collections.emptyList())))
-                .filter(rec -> filterLevel == null || rec.riskLevel() == filterLevel)
                 .toList();
 
-        return new PageImpl<>(recommendations, pageable, articlesPage.getTotalElements());
+        return new PageImpl<>(recommendations, pageable, total);
+    }
+
+    public RiskLevel determineRiskLevel(Article article) {
+        BigDecimal currentStock = article.getStockQuantity();
+        BigDecimal minStock = article.getMinStockQuantity();
+        if (currentStock == null || currentStock.compareTo(BigDecimal.ZERO) <= 0) {
+            return RiskLevel.OUT_OF_STOCK;
+        }
+        if (minStock == null || minStock.compareTo(BigDecimal.ZERO) <= 0) {
+            return RiskLevel.NORMAL;
+        }
+        double ratio = currentStock.doubleValue() / minStock.doubleValue();
+        if (ratio <= 0.33) {
+            return RiskLevel.CRITICAL;
+        } else if (ratio <= 1.0) {
+            return RiskLevel.WARNING;
+        } else {
+            return RiskLevel.NORMAL;
+        }
     }
 
     @Transactional(readOnly = true)

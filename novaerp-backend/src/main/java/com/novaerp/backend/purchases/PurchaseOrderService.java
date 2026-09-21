@@ -36,6 +36,9 @@ public class PurchaseOrderService {
 
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> list(PurchaseOrderStatus status, Long supplierId, Pageable pageable) {
+        if (status != null && supplierId != null) {
+            return purchaseOrderRepository.findWithFilters(status, supplierId, pageable).map(PurchaseOrderResponse::from);
+        }
         if (status != null) {
             return purchaseOrderRepository.findByStatus(status, pageable).map(PurchaseOrderResponse::from);
         }

@@ -19,6 +19,11 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
 
     Page<PurchaseOrder> findBySupplierId(Long supplierId, Pageable pageable);
 
+    @Query("SELECT po FROM PurchaseOrder po WHERE (:status IS NULL OR po.status = :status) AND (:supplierId IS NULL OR po.supplier.id = :supplierId)")
+    Page<PurchaseOrder> findWithFilters(@org.springframework.data.repository.query.Param("status") PurchaseOrderStatus status,
+                                        @org.springframework.data.repository.query.Param("supplierId") Long supplierId,
+                                        Pageable pageable);
+
     @Query("SELECT COUNT(po) FROM PurchaseOrder po")
     long countTotalOrders();
 }

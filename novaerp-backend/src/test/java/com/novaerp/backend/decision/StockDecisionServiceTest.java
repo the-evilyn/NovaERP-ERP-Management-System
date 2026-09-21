@@ -156,4 +156,35 @@ class StockDecisionServiceTest {
         assertThat(summary.totalEstimatedReorderBudget()).isGreaterThan(BigDecimal.ZERO);
         assertThat(summary.averageRiskScore()).isGreaterThan(0.0);
     }
+
+    @Test
+    @DisplayName("getRecommendations with filterLevel filters and paginates correctly")
+    void testGetRecommendations_WithFilterLevel() {
+        Article a1 = Article.builder()
+                .id(1L)
+                .reference("A1")
+                .designation("Article 1")
+                .stockQuantity(BigDecimal.ZERO)
+                .minStockQuantity(BigDecimal.valueOf(10))
+                .purchasePriceHt(BigDecimal.valueOf(20))
+                .build();
+
+        Article a2 = Article.builder()
+                .id(2L)
+                .reference("A2")
+                .designation("Article 2")
+                .stockQuantity(BigDecimal.valueOf(2))
+                .minStockQuantity(BigDecimal.valueOf(10))
+                .purchasePriceHt(BigDecimal.valueOf(30))
+                .build();
+
+        when(articleRepository.findAllAtRiskArticles()).thenReturn(List.of(a1, a2));
+        when(supplierPriceRepository.findByArticleIdIn(any())).thenReturn(Collections.emptyList());
+
+        Page<ReorderRecommendationResponse> result = decisionService.getRecommendations(RiskLevel.OUT_OF_STOCK, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).riskLevel()).isEqualTo(RiskLevel.OUT_OF_STOCK);
+    }
 }

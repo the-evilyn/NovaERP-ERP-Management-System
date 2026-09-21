@@ -19,6 +19,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -778,5 +782,26 @@ class SaleOrderServiceTest {
         assertThat(restock.type()).isEqualTo(StockMovementType.IN);
         assertThat(restock.warehouseId()).isNull();
         assertThat(restock.locationId()).isNull();
+    }
+
+    @Test
+    @DisplayName("list with combined status and clientId calls findWithFilters")
+    void testList_WithBothStatusAndClientId() {
+        Pageable pageable = PageRequest.of(0, 10);
+        SaleOrder order = SaleOrder.builder()
+                .id(1L)
+                .orderNumber("CMD-2026-00001")
+                .client(sampleClient)
+                .status(SaleOrderStatus.CONFIRMED)
+                .items(new ArrayList<>())
+                .build();
+        Page<SaleOrder> page = new PageImpl<>(List.of(order), pageable, 1);
+
+        when(saleOrderRepository.findWithFilters(SaleOrderStatus.CONFIRMED, 1L, pageable)).thenReturn(page);
+
+        Page<SaleOrderResponse> result = saleOrderService.list(SaleOrderStatus.CONFIRMED, 1L, pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(saleOrderRepository).findWithFilters(SaleOrderStatus.CONFIRMED, 1L, pageable);
     }
 }

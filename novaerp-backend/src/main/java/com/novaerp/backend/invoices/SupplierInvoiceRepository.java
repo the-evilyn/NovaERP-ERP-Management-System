@@ -23,6 +23,12 @@ public interface SupplierInvoiceRepository extends JpaRepository<SupplierInvoice
 
     Page<SupplierInvoice> findByStatusAndSupplierId(SupplierInvoiceStatus status, Long supplierId, Pageable pageable);
 
+    @Query("SELECT si FROM SupplierInvoice si WHERE (:status IS NULL OR si.status = :status) AND (:supplierId IS NULL OR si.supplier.id = :supplierId) AND (:purchaseOrderId IS NULL OR (si.purchaseOrder IS NOT NULL AND si.purchaseOrder.id = :purchaseOrderId))")
+    Page<SupplierInvoice> findWithFilters(@org.springframework.data.repository.query.Param("status") SupplierInvoiceStatus status,
+                                          @org.springframework.data.repository.query.Param("supplierId") Long supplierId,
+                                          @org.springframework.data.repository.query.Param("purchaseOrderId") Long purchaseOrderId,
+                                          Pageable pageable);
+
     @Query("SELECT COUNT(si) FROM SupplierInvoice si")
     long countTotalInvoices();
 }

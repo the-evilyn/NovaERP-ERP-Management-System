@@ -585,4 +585,25 @@ class PurchaseOrderServiceTest {
                     assertThat(rse.getReason()).contains("est inactif");
                 });
     }
+
+    @Test
+    @DisplayName("list with combined status and supplierId calls findWithFilters")
+    void testList_WithBothStatusAndSupplierId() {
+        Pageable pageable = PageRequest.of(0, 10);
+        PurchaseOrder order = PurchaseOrder.builder()
+                .id(1L)
+                .orderNumber("BC-2026-00001")
+                .supplier(sampleSupplier)
+                .status(PurchaseOrderStatus.CONFIRMED)
+                .items(new ArrayList<>())
+                .build();
+        Page<PurchaseOrder> page = new PageImpl<>(List.of(order), pageable, 1);
+
+        when(purchaseOrderRepository.findWithFilters(PurchaseOrderStatus.CONFIRMED, 1L, pageable)).thenReturn(page);
+
+        Page<PurchaseOrderResponse> result = purchaseOrderService.list(PurchaseOrderStatus.CONFIRMED, 1L, pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(purchaseOrderRepository).findWithFilters(PurchaseOrderStatus.CONFIRMED, 1L, pageable);
+    }
 }

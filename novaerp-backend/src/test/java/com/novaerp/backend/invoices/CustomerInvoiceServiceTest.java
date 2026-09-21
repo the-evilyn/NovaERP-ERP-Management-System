@@ -393,4 +393,25 @@ class CustomerInvoiceServiceTest {
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().get(0).invoiceNumber()).isEqualTo("FAC-2026-00001");
     }
+
+    @Test
+    @DisplayName("list with multiple criteria calls findWithFilters")
+    void testList_WithMultiCriteria() {
+        Pageable pageable = PageRequest.of(0, 10);
+        CustomerInvoice invoice = CustomerInvoice.builder()
+                .id(1L)
+                .invoiceNumber("FAC-2026-00001")
+                .client(sampleClient)
+                .status(CustomerInvoiceStatus.ISSUED)
+                .items(new ArrayList<>())
+                .build();
+        Page<CustomerInvoice> page = new PageImpl<>(List.of(invoice), pageable, 1);
+
+        when(customerInvoiceRepository.findWithFilters(CustomerInvoiceStatus.ISSUED, 1L, 5L, pageable)).thenReturn(page);
+
+        Page<CustomerInvoiceResponse> result = customerInvoiceService.list(CustomerInvoiceStatus.ISSUED, 1L, 5L, pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(customerInvoiceRepository).findWithFilters(CustomerInvoiceStatus.ISSUED, 1L, 5L, pageable);
+    }
 }

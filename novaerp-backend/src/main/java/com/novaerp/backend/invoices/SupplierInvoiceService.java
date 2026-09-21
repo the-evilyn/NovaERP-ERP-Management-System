@@ -42,8 +42,9 @@ public class SupplierInvoiceService {
 
     @Transactional(readOnly = true)
     public Page<SupplierInvoiceResponse> list(SupplierInvoiceStatus status, Long supplierId, Long purchaseOrderId, Pageable pageable) {
-        if (status != null && supplierId != null) {
-            return supplierInvoiceRepository.findByStatusAndSupplierId(status, supplierId, pageable).map(SupplierInvoiceResponse::from);
+        int filterCount = (status != null ? 1 : 0) + (supplierId != null ? 1 : 0) + (purchaseOrderId != null ? 1 : 0);
+        if (filterCount > 1) {
+            return supplierInvoiceRepository.findWithFilters(status, supplierId, purchaseOrderId, pageable).map(SupplierInvoiceResponse::from);
         }
         if (status != null) {
             return supplierInvoiceRepository.findByStatus(status, pageable).map(SupplierInvoiceResponse::from);

@@ -19,6 +19,11 @@ public interface SaleOrderRepository extends JpaRepository<SaleOrder, Long> {
 
     Page<SaleOrder> findByClientId(Long clientId, Pageable pageable);
 
+    @Query("SELECT so FROM SaleOrder so WHERE (:status IS NULL OR so.status = :status) AND (:clientId IS NULL OR so.client.id = :clientId)")
+    Page<SaleOrder> findWithFilters(@org.springframework.data.repository.query.Param("status") SaleOrderStatus status,
+                                    @org.springframework.data.repository.query.Param("clientId") Long clientId,
+                                    Pageable pageable);
+
     @Query("SELECT COUNT(so) FROM SaleOrder so")
     long countTotalOrders();
 }

@@ -39,6 +39,9 @@ public class SaleOrderService {
 
     @Transactional(readOnly = true)
     public Page<SaleOrderResponse> list(SaleOrderStatus status, Long clientId, Pageable pageable) {
+        if (status != null && clientId != null) {
+            return saleOrderRepository.findWithFilters(status, clientId, pageable).map(SaleOrderResponse::from);
+        }
         if (status != null) {
             return saleOrderRepository.findByStatus(status, pageable).map(SaleOrderResponse::from);
         }

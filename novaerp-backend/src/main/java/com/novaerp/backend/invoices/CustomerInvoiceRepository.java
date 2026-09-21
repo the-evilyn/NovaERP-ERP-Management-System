@@ -23,6 +23,12 @@ public interface CustomerInvoiceRepository extends JpaRepository<CustomerInvoice
 
     Page<CustomerInvoice> findByStatusAndClientId(CustomerInvoiceStatus status, Long clientId, Pageable pageable);
 
+    @Query("SELECT ci FROM CustomerInvoice ci WHERE (:status IS NULL OR ci.status = :status) AND (:clientId IS NULL OR ci.client.id = :clientId) AND (:saleOrderId IS NULL OR (ci.saleOrder IS NOT NULL AND ci.saleOrder.id = :saleOrderId))")
+    Page<CustomerInvoice> findWithFilters(@org.springframework.data.repository.query.Param("status") CustomerInvoiceStatus status,
+                                          @org.springframework.data.repository.query.Param("clientId") Long clientId,
+                                          @org.springframework.data.repository.query.Param("saleOrderId") Long saleOrderId,
+                                          Pageable pageable);
+
     @Query("SELECT COUNT(ci) FROM CustomerInvoice ci")
     long countTotalInvoices();
 }
