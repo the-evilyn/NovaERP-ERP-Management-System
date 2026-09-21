@@ -394,6 +394,17 @@ export interface DashboardStatsResponse {
   topArticles: TopArticleStockValue[];
 }
 
+export interface MonthlySalesEvolution {
+  period: string;
+  label: string;
+  revenue: number;
+  revenueHt: number;
+  orderCount: number;
+  draftRevenue: number;
+  totalRevenue: number;
+  totalOrderCount: number;
+}
+
 // ---- Intelligent Decision Support ----
 export type RiskLevel = "OUT_OF_STOCK" | "CRITICAL" | "WARNING" | "NORMAL";
 

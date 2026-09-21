@@ -19,8 +19,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.Year;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -389,5 +395,79 @@ public class SaleOrderService {
     private SaleOrder findOrderOrThrow(Long id) {
         return saleOrderRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Commande introuvable: ID " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public List<MonthlySalesEvolutionDto> getSalesEvolution(int months) {
+        if (months < 1) {
+            months = 1;
+        }
+        if (months > 24) {
+            months = 24;
+        }
+
+        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
+        YearMonth startMonth = currentMonth.minusMonths(months - 1);
+        Instant since = startMonth.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        List<SaleOrder> orders = saleOrderRepository.findActiveOrdersSince(since);
+
+        Map<YearMonth, List<SaleOrder>> ordersByMonth = orders.stream()
+                .filter(o -> o.getCreatedAt() != null)
+                .collect(Collectors.groupingBy(o -> YearMonth.from(o.getCreatedAt().atZone(ZoneOffset.UTC))));
+
+        DateTimeFormatter labelFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.FRENCH);
+
+        List<MonthlySalesEvolutionDto> result = new ArrayList<>();
+        YearMonth cursor = startMonth;
+        while (!cursor.isAfter(currentMonth)) {
+            List<SaleOrder> monthOrders = ordersByMonth.getOrDefault(cursor, List.of());
+
+            BigDecimal confirmedTtc = BigDecimal.ZERO;
+            BigDecimal confirmedHt = BigDecimal.ZERO;
+            long confirmedCount = 0;
+
+            BigDecimal draftTtc = BigDecimal.ZERO;
+            long draftCount = 0;
+
+            for (SaleOrder o : monthOrders) {
+                if (o.getStatus() == SaleOrderStatus.CONFIRMED || o.getStatus() == SaleOrderStatus.DELIVERED) {
+                    if (o.getTotalTtc() != null) {
+                        confirmedTtc = confirmedTtc.add(o.getTotalTtc());
+                    }
+                    if (o.getSubtotalHt() != null) {
+                        confirmedHt = confirmedHt.add(o.getSubtotalHt());
+                    }
+                    confirmedCount++;
+                } else if (o.getStatus() == SaleOrderStatus.DRAFT) {
+                    if (o.getTotalTtc() != null) {
+                        draftTtc = draftTtc.add(o.getTotalTtc());
+                    }
+                    draftCount++;
+                }
+            }
+
+            BigDecimal totalTtc = confirmedTtc.add(draftTtc);
+            long totalCount = confirmedCount + draftCount;
+
+            String period = cursor.toString();
+            String rawLabel = cursor.format(labelFormatter);
+            String label = rawLabel.substring(0, 1).toUpperCase(Locale.FRENCH) + rawLabel.substring(1);
+
+            result.add(new MonthlySalesEvolutionDto(
+                    period,
+                    label,
+                    confirmedTtc.setScale(2, RoundingMode.HALF_UP),
+                    confirmedHt.setScale(2, RoundingMode.HALF_UP),
+                    confirmedCount,
+                    draftTtc.setScale(2, RoundingMode.HALF_UP),
+                    totalTtc.setScale(2, RoundingMode.HALF_UP),
+                    totalCount
+            ));
+
+            cursor = cursor.plusMonths(1);
+        }
+
+        return result;
     }
 }

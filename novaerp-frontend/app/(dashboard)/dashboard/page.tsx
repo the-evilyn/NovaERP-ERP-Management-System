@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/providers/auth-provider";
 import { QuickReorderDialog } from "@/components/decision/quick-reorder-dialog";
-import { useDashboardStats } from "@/hooks/use-dashboard";
+import { useDashboardStats, useSalesEvolution } from "@/hooks/use-dashboard";
 import { useRecommendations } from "@/hooks/use-decision";
 import { useAllStockMovements } from "@/hooks/use-stock-movements";
 import type {
@@ -37,6 +37,7 @@ import type {
   StockMovementType,
 } from "@/types/models";
 import { StockValueByCategoryChart } from "@/components/dashboard/stock-value-by-category-chart";
+import { SalesEvolutionChart } from "@/components/dashboard/sales-evolution-chart";
 import { formatCurrency, formatDateTime } from "@/lib/formatters";
 
 const movementBadgeVariant: Record<
@@ -113,6 +114,7 @@ export default function DashboardPage(): React.ReactElement {
     useState<ReorderRecommendationResponse | null>(null);
 
   const { data: stats, isPending: isStatsPending } = useDashboardStats();
+  const { data: salesEvolution, isPending: isSalesPending } = useSalesEvolution(6);
   const { data: recommendationsPage, isPending: isRecsPending } =
     useRecommendations("ALL", 0, 5);
   const { data: movementsPage, isPending: isMovementsPending } =
@@ -307,68 +309,93 @@ export default function DashboardPage(): React.ReactElement {
 
       {/* Category Chart & Top Articles (ADMIN Financial Valuation Only) */}
       {isAdmin && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
           <CardFrame>
-            <CardFrameHeader>
-              <CardFrameTitle>Valeur du stock par catégorie</CardFrameTitle>
-              <CardFrameDescription>
-                {stats?.totalArticles
-                  ? `Agrégation globale sur les ${stats.totalArticles} articles du catalogue`
-                  : "Agrégation globale sur les articles du catalogue"}
-              </CardFrameDescription>
+            <CardFrameHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardFrameTitle>Évolution des ventes</CardFrameTitle>
+                <CardFrameDescription>
+                  Chiffre d&apos;affaires mensuel sur les 6 derniers mois (commandes clients)
+                </CardFrameDescription>
+              </div>
+              <Badge variant="outline" className="self-start sm:self-auto text-xs">
+                6 derniers mois
+              </Badge>
             </CardFrameHeader>
             <div className="px-6 pb-6">
-              {isStatsPending ? (
-                <div className="flex flex-col gap-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-full" />
-                  ))}
+              {isSalesPending ? (
+                <div className="flex h-56 items-center justify-center">
+                  <Skeleton className="h-48 w-full" />
                 </div>
               ) : (
-                <StockValueByCategoryChart data={categoryValues} />
+                <SalesEvolutionChart data={salesEvolution ?? []} />
               )}
             </div>
           </CardFrame>
 
-          <CardFrame>
-            <CardFrameHeader>
-              <CardFrameTitle>Meilleurs articles</CardFrameTitle>
-              <CardFrameDescription>Par valeur de stock totale</CardFrameDescription>
-            </CardFrameHeader>
-            <Table variant="card">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Article</TableHead>
-                  <TableHead className="text-right">Valeur</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isStatsPending &&
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell colSpan={2}>
-                        <Skeleton className="h-5 w-full" />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <CardFrame>
+              <CardFrameHeader>
+                <CardFrameTitle>Valeur du stock par catégorie</CardFrameTitle>
+                <CardFrameDescription>
+                  {stats?.totalArticles
+                    ? `Agrégation globale sur les ${stats.totalArticles} articles du catalogue`
+                    : "Agrégation globale sur les articles du catalogue"}
+                </CardFrameDescription>
+              </CardFrameHeader>
+              <div className="px-6 pb-6">
+                {isStatsPending ? (
+                  <div className="flex flex-col gap-4">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-8 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <StockValueByCategoryChart data={categoryValues} />
+                )}
+              </div>
+            </CardFrame>
+
+            <CardFrame>
+              <CardFrameHeader>
+                <CardFrameTitle>Meilleurs articles</CardFrameTitle>
+                <CardFrameDescription>Par valeur de stock totale</CardFrameDescription>
+              </CardFrameHeader>
+              <Table variant="card">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Article</TableHead>
+                    <TableHead className="text-right">Valeur</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isStatsPending &&
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell colSpan={2}>
+                          <Skeleton className="h-5 w-full" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  {topArticles.map((article) => (
+                    <TableRow key={article.id}>
+                      <TableCell className="font-medium">
+                        {article.designation}
+                        <span className="ml-1.5 text-muted-foreground text-xs">
+                          {article.reference}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="success">
+                          {formatCurrency(article.stockValue)}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
-                {topArticles.map((article) => (
-                  <TableRow key={article.id}>
-                    <TableCell className="font-medium">
-                      {article.designation}
-                      <span className="ml-1.5 text-muted-foreground text-xs">
-                        {article.reference}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="success">
-                        {formatCurrency(article.stockValue)}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardFrame>
+                </TableBody>
+              </Table>
+            </CardFrame>
+          </div>
         </div>
       )}
 

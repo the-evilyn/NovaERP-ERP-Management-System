@@ -847,4 +847,89 @@ class SaleOrderServiceTest {
                     assertThat(rse.getReason()).contains("doit être confirmée avant d'être livrée");
                 });
     }
+
+    @Test
+    @DisplayName("getSalesEvolution returns contiguous chronological months with accurate aggregation")
+    void testGetSalesEvolution_Success() {
+        java.time.YearMonth current = java.time.YearMonth.now(java.time.ZoneOffset.UTC);
+        java.time.YearMonth prev1 = current.minusMonths(1);
+
+        Instant timeCurrent = current.atDay(15).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        Instant timePrev1 = prev1.atDay(10).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+
+        SaleOrder orderCurrent = SaleOrder.builder()
+                .id(101L)
+                .orderNumber("SO-CURRENT-1")
+                .status(SaleOrderStatus.CONFIRMED)
+                .subtotalHt(new BigDecimal("400.00"))
+                .totalTtc(new BigDecimal("480.00"))
+                .createdAt(timeCurrent)
+                .build();
+
+        SaleOrder orderPrevDraft = SaleOrder.builder()
+                .id(102L)
+                .orderNumber("SO-PREV-DRAFT")
+                .status(SaleOrderStatus.DRAFT)
+                .subtotalHt(new BigDecimal("100.00"))
+                .totalTtc(new BigDecimal("120.00"))
+                .createdAt(timePrev1)
+                .build();
+
+        SaleOrder orderPrevDelivered = SaleOrder.builder()
+                .id(103L)
+                .orderNumber("SO-PREV-DELIV")
+                .status(SaleOrderStatus.DELIVERED)
+                .subtotalHt(new BigDecimal("250.00"))
+                .totalTtc(new BigDecimal("300.00"))
+                .createdAt(timePrev1)
+                .build();
+
+        when(saleOrderRepository.findActiveOrdersSince(any(Instant.class)))
+                .thenReturn(List.of(orderPrevDraft, orderPrevDelivered, orderCurrent));
+
+        var evolution = saleOrderService.getSalesEvolution(6);
+
+        assertThat(evolution).hasSize(6);
+
+        // Verify chronological order
+        assertThat(evolution.get(5).period()).isEqualTo(current.toString());
+        assertThat(evolution.get(4).period()).isEqualTo(prev1.toString());
+
+        // Verify current month (only 1 CONFIRMED order)
+        var currentDto = evolution.get(5);
+        assertThat(currentDto.revenue()).isEqualByComparingTo("480.00");
+        assertThat(currentDto.revenueHt()).isEqualByComparingTo("400.00");
+        assertThat(currentDto.orderCount()).isEqualTo(1);
+        assertThat(currentDto.draftRevenue()).isEqualByComparingTo("0.00");
+        assertThat(currentDto.totalRevenue()).isEqualByComparingTo("480.00");
+        assertThat(currentDto.totalOrderCount()).isEqualTo(1);
+
+        // Verify previous month (1 DELIVERED + 1 DRAFT)
+        var prevDto = evolution.get(4);
+        assertThat(prevDto.revenue()).isEqualByComparingTo("300.00");
+        assertThat(prevDto.revenueHt()).isEqualByComparingTo("250.00");
+        assertThat(prevDto.orderCount()).isEqualTo(1);
+        assertThat(prevDto.draftRevenue()).isEqualByComparingTo("120.00");
+        assertThat(prevDto.totalRevenue()).isEqualByComparingTo("420.00");
+        assertThat(prevDto.totalOrderCount()).isEqualTo(2);
+
+        // Verify month before previous (empty, zero-filled)
+        var olderDto = evolution.get(0);
+        assertThat(olderDto.revenue()).isEqualByComparingTo("0.00");
+        assertThat(olderDto.orderCount()).isEqualTo(0);
+        assertThat(olderDto.totalRevenue()).isEqualByComparingTo("0.00");
+        assertThat(olderDto.totalOrderCount()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("getSalesEvolution clamps months parameter between 1 and 24")
+    void testGetSalesEvolution_Clamping() {
+        when(saleOrderRepository.findActiveOrdersSince(any(Instant.class))).thenReturn(List.of());
+
+        var zeroMonths = saleOrderService.getSalesEvolution(0);
+        assertThat(zeroMonths).hasSize(1);
+
+        var excessMonths = saleOrderService.getSalesEvolution(99);
+        assertThat(excessMonths).hasSize(24);
+    }
 }
