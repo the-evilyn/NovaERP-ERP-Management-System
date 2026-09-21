@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend CI (Spring Boot)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: novaerp
+          POSTGRES_USER: novaerp
+          POSTGRES_PASSWORD: novaerp
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Backend Tests
+        working-directory: novaerp-backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_NAME: novaerp
+          DB_USER: novaerp
+          DB_PASSWORD: novaerp
+        run: |
+          chmod +x mvnw
+          ./mvnw clean test
+
+  frontend:
+    name: Frontend CI (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: novaerp-frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: novaerp-frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: novaerp-frontend
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: novaerp-frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: novaerp-frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: npm run build
