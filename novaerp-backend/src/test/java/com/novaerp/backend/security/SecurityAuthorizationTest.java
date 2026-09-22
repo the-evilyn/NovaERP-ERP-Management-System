@@ -326,4 +326,27 @@ class SecurityAuthorizationTest {
                     org.assertj.core.api.Assertions.assertThat(status).isIn(401, 403);
                 });
     }
+
+    @Test
+    @DisplayName("ROLE_USER cannot access POST /api/payments/supplier-invoices/1 (403 Forbidden)")
+    @WithMockUser(username = "warehouse@novaerp.local", roles = {"USER"})
+    void testUserRole_CannotPostSupplierPayment() throws Exception {
+        mockMvc.perform(post("/api/payments/supplier-invoices/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100,\"paymentMethod\":\"BANK_TRANSFER\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("ROLE_ADMIN can access POST /api/payments/supplier-invoices/1 (not 403 Forbidden)")
+    @WithMockUser(username = "admin@novaerp.local", roles = {"ADMIN"})
+    void testAdminRole_CanPostSupplierPayment() throws Exception {
+        mockMvc.perform(post("/api/payments/supplier-invoices/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100,\"paymentMethod\":\"BANK_TRANSFER\"}"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    org.assertj.core.api.Assertions.assertThat(status).isNotEqualTo(403);
+                });
+    }
 }
