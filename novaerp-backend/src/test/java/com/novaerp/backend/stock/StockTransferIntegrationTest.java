@@ -59,6 +59,12 @@ class StockTransferIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private UnitRepository unitRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private Warehouse srcWarehouse;
@@ -71,8 +77,25 @@ class StockTransferIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        srcWarehouse = warehouseRepository.findByCode("WH-MAIN").orElseThrow();
-        srcLocation = warehouseLocationRepository.findByWarehouseIdAndCode(srcWarehouse.getId(), "LOC-GEN").orElseThrow();
+        srcWarehouse = warehouseRepository.findByCode("WH-MAIN").orElseGet(() ->
+                warehouseRepository.save(Warehouse.builder()
+                        .code("WH-MAIN")
+                        .name("Entrepôt Principal (Siège)")
+                        .description("Site logistique central et stockage principal")
+                        .address("Casablanca, Maroc")
+                        .active(true)
+                        .isDefault(true)
+                        .build()));
+
+        srcLocation = warehouseLocationRepository.findByWarehouseIdAndCode(srcWarehouse.getId(), "LOC-GEN").orElseGet(() ->
+                warehouseLocationRepository.save(WarehouseLocation.builder()
+                        .warehouse(srcWarehouse)
+                        .code("LOC-GEN")
+                        .name("Zone Générale")
+                        .description("Emplacement général de stockage par défaut")
+                        .active(true)
+                        .isDefault(true)
+                        .build()));
 
         dstWarehouse = warehouseRepository.save(Warehouse.builder()
                 .code("WH-DST-INT")
@@ -87,10 +110,71 @@ class StockTransferIntegrationTest {
                 .active(true)
                 .build());
 
+        if (articleRepository.count() < 2) {
+            Category cat = categoryRepository.save(Category.builder().name("Test Cat TRF INT " + System.nanoTime()).description("Test").build());
+            Unit unit = unitRepository.save(Unit.builder().name("Piece " + System.nanoTime()).symbol("PCS" + (System.nanoTime() % 10000)).build());
+            Article a1 = articleRepository.save(Article.builder()
+                    .reference("ART-TRF-INT-1-" + System.nanoTime())
+                    .designation("Article TRF INT Test 1")
+                    .category(cat)
+                    .unit(unit)
+                    .purchasePriceHt(new BigDecimal("100.0000"))
+                    .unitCostTtc(new BigDecimal("120.0000"))
+                    .salePriceHt(new BigDecimal("150.0000"))
+                    .stockQuantity(new BigDecimal("50.0000"))
+                    .minStockQuantity(new BigDecimal("10.0000"))
+                    .build());
+            Article a2 = articleRepository.save(Article.builder()
+                    .reference("ART-TRF-INT-2-" + System.nanoTime())
+                    .designation("Article TRF INT Test 2")
+                    .category(cat)
+                    .unit(unit)
+                    .purchasePriceHt(new BigDecimal("50.0000"))
+                    .unitCostTtc(new BigDecimal("60.0000"))
+                    .salePriceHt(new BigDecimal("80.0000"))
+                    .stockQuantity(new BigDecimal("20.0000"))
+                    .minStockQuantity(new BigDecimal("5.0000"))
+                    .build());
+
+            warehouseStockRepository.save(WarehouseStock.builder()
+                    .article(a1)
+                    .warehouse(srcWarehouse)
+                    .location(srcLocation)
+                    .quantity(a1.getStockQuantity())
+                    .minQuantity(a1.getMinStockQuantity())
+                    .build());
+            warehouseStockRepository.save(WarehouseStock.builder()
+                    .article(a2)
+                    .warehouse(srcWarehouse)
+                    .location(srcLocation)
+                    .quantity(a2.getStockQuantity())
+                    .minQuantity(a2.getMinStockQuantity())
+                    .build());
+        }
+
         List<Article> articles = articleRepository.findAll();
         assertThat(articles.size()).isGreaterThanOrEqualTo(2);
         article1 = articles.get(0);
         article2 = articles.get(1);
+
+        if (warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(article1.getId(), srcWarehouse.getId(), srcLocation.getId()).isEmpty()) {
+            warehouseStockRepository.save(WarehouseStock.builder()
+                    .article(article1)
+                    .warehouse(srcWarehouse)
+                    .location(srcLocation)
+                    .quantity(new BigDecimal("100.0000"))
+                    .minQuantity(new BigDecimal("10.0000"))
+                    .build());
+        }
+        if (warehouseStockRepository.findByArticleIdAndWarehouseIdAndLocationId(article2.getId(), srcWarehouse.getId(), srcLocation.getId()).isEmpty()) {
+            warehouseStockRepository.save(WarehouseStock.builder()
+                    .article(article2)
+                    .warehouse(srcWarehouse)
+                    .location(srcLocation)
+                    .quantity(new BigDecimal("100.0000"))
+                    .minQuantity(new BigDecimal("10.0000"))
+                    .build());
+        }
 
         adminUser = userRepository.findAll().stream()
                 .filter(u -> u.getRole() == Role.ADMIN)

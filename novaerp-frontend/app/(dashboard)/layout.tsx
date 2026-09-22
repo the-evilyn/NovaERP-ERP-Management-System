@@ -14,7 +14,11 @@ const ADMIN_ONLY_ROUTES = [
   '/stock/transfers/new',
 ];
 
-export default function DashboardLayout({ children }: LayoutProps<'/'>) {
+export default function DashboardLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading } = useAuth();

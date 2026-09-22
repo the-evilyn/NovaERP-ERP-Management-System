@@ -1,5 +1,6 @@
 package com.novaerp.backend.stock;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,90 @@ class WarehouseRepositoryTest {
 
     @Autowired
     private StockMovementRepository stockMovementRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private UnitRepository unitRepository;
+
+    @BeforeEach
+    void setUp() {
+        Warehouse defaultWh = warehouseRepository.findByCode("WH-MAIN").orElseGet(() ->
+                warehouseRepository.save(Warehouse.builder()
+                        .code("WH-MAIN")
+                        .name("Entrepôt Principal (Siège)")
+                        .description("Site logistique central et stockage principal")
+                        .address("Casablanca, Maroc")
+                        .active(true)
+                        .isDefault(true)
+                        .build()));
+
+        WarehouseLocation defaultLoc = warehouseLocationRepository.findByWarehouseIdAndCode(defaultWh.getId(), "LOC-GEN").orElseGet(() ->
+                warehouseLocationRepository.save(WarehouseLocation.builder()
+                        .warehouse(defaultWh)
+                        .code("LOC-GEN")
+                        .name("Zone Générale")
+                        .description("Emplacement général de stockage par défaut")
+                        .active(true)
+                        .isDefault(true)
+                        .build()));
+
+        if (articleRepository.count() == 0) {
+            Category cat = categoryRepository.save(Category.builder().name("Test Cat " + System.nanoTime()).description("Test").build());
+            Unit unit = unitRepository.save(Unit.builder().name("Piece " + System.nanoTime()).symbol("PCS" + (System.nanoTime() % 10000)).build());
+            Article a1 = articleRepository.save(Article.builder()
+                    .reference("ART-WH-1-" + System.nanoTime())
+                    .designation("Article WH Test 1")
+                    .category(cat)
+                    .unit(unit)
+                    .purchasePriceHt(new BigDecimal("100.0000"))
+                    .unitCostTtc(new BigDecimal("120.0000"))
+                    .salePriceHt(new BigDecimal("150.0000"))
+                    .stockQuantity(new BigDecimal("50.0000"))
+                    .minStockQuantity(new BigDecimal("10.0000"))
+                    .build());
+            Article a2 = articleRepository.save(Article.builder()
+                    .reference("ART-WH-2-" + System.nanoTime())
+                    .designation("Article WH Test 2")
+                    .category(cat)
+                    .unit(unit)
+                    .purchasePriceHt(new BigDecimal("50.0000"))
+                    .unitCostTtc(new BigDecimal("60.0000"))
+                    .salePriceHt(new BigDecimal("80.0000"))
+                    .stockQuantity(new BigDecimal("20.0000"))
+                    .minStockQuantity(new BigDecimal("5.0000"))
+                    .build());
+
+            warehouseStockRepository.save(WarehouseStock.builder()
+                    .article(a1)
+                    .warehouse(defaultWh)
+                    .location(defaultLoc)
+                    .quantity(a1.getStockQuantity())
+                    .minQuantity(a1.getMinStockQuantity())
+                    .build());
+            warehouseStockRepository.save(WarehouseStock.builder()
+                    .article(a2)
+                    .warehouse(defaultWh)
+                    .location(defaultLoc)
+                    .quantity(a2.getStockQuantity())
+                    .minQuantity(a2.getMinStockQuantity())
+                    .build());
+        }
+
+        if (stockMovementRepository.count() == 0) {
+            Article a1 = articleRepository.findAll().get(0);
+            stockMovementRepository.save(StockMovement.builder()
+                    .article(a1)
+                    .warehouse(defaultWh)
+                    .location(defaultLoc)
+                    .type(StockMovementType.IN)
+                    .quantity(new BigDecimal("10.0000"))
+                    .reference("INIT-" + System.nanoTime())
+                    .note("Initial stock")
+                    .build());
+        }
+    }
 
     @Test
     @DisplayName("Default warehouse WH-MAIN and location LOC-GEN are seeded by migration")
