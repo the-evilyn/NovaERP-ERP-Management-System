@@ -48,6 +48,7 @@ import {
   useProducts,
 } from "@/hooks/use-products";
 import { formatCurrency } from "@/lib/formatters";
+import { useAuth } from "@/providers/auth-provider";
 import type { Product } from "@/types/models";
 
 function ProductExpandedRow({
@@ -88,6 +89,9 @@ function ProductExpandedRow({
 }
 
 export function ProductTable(): React.ReactElement {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -246,7 +250,7 @@ export function ProductTable(): React.ReactElement {
         emptyMessage={isPending ? "Chargement..." : "Aucun produit trouvé."}
         searchValue={search}
         onSearchChange={setSearch}
-        selectable
+        selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         expandable
@@ -263,7 +267,7 @@ export function ProductTable(): React.ReactElement {
         }
         customHeader={
           <>
-            {selectedIds.length > 0 && (
+            {isAdmin && selectedIds.length > 0 && (
               <Button
                 variant="destructive"
                 onClick={() => setDeleteDialogOpen(true)}
@@ -279,14 +283,16 @@ export function ProductTable(): React.ReactElement {
               className="hidden"
               onChange={handleImportCsv}
             />
-            <Button
-              variant="outline"
-              loading={createProducts.isPending}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
-              Importer CSV
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                loading={createProducts.isPending}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
+                Importer CSV
+              </Button>
+            )}
             <Button
               variant="outline"
               loading={isExporting}
@@ -295,10 +301,12 @@ export function ProductTable(): React.ReactElement {
               <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
               Exporter CSV
             </Button>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-              Nouveau produit
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                Nouveau produit
+              </Button>
+            )}
           </>
         }
         actions={(product) => (
@@ -312,21 +320,25 @@ export function ProductTable(): React.ReactElement {
                 <HugeiconsIcon icon={ViewIcon} strokeWidth={2} />
                 Voir la fiche
               </MenuItem>
-              <MenuItem onClick={() => setEditingProduct(product)}>
-                <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
-                Modifier
-              </MenuItem>
-              <MenuSeparator />
-              <MenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedIds([product.id]);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                Supprimer
-              </MenuItem>
+              {isAdmin && (
+                <>
+                  <MenuItem onClick={() => setEditingProduct(product)}>
+                    <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+                    Modifier
+                  </MenuItem>
+                  <MenuSeparator />
+                  <MenuItem
+                    variant="destructive"
+                    onClick={() => {
+                      setSelectedIds([product.id]);
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                    Supprimer
+                  </MenuItem>
+                </>
+              )}
             </MenuPopup>
           </Menu>
         )}

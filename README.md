@@ -84,7 +84,7 @@ L'authentification est basée sur des jetons JWT HMAC-SHA256 avec politique RBAC
    - **Explication en langage naturel (Français) :**
      Chaque recommandation fournit un diagnostic complet et transparent pour le responsable d'achats.
    - **Commande en 1-clic :**
-     Génération automatique d'un mouvement d'entrée (`IN`) pré-rempli (`CMD-REAP-...`).
+     Génération automatique d'un bon de commande d'achat fournisseur en brouillon (`DRAFT`) pré-rempli avec le fournisseur optimal et la quantité suggérée (le stock n'est incrémenté qu'à la réception effective).
 
 3. **Gestion des Clients Industriels (`/clients`) :**
    - Fiches complètes : Raison sociale, Email, Téléphone, Adresse, Ville, ICE / Numéro fiscal.
@@ -178,7 +178,7 @@ npm run build   # Génère les 17 routes statiques avec succès
      - Sélection automatisée du meilleur fournisseur d'après les devis et délais.
      - Estimation prévisionnelle du budget total nécessaire.
      - Diagnostic explicatif transparent en français.
-   - Action concrète : Clic sur *"Commander"* sur un article en rupture -> validation immédiate du bon d'entrée en stock -> mise à jour instantanée du niveau de stock et des KPIs.
+   - Action concrète : Clic sur *"Commander"* sur un article en rupture -> création instantanée du bon de commande fournisseur (`DRAFT`) -> confirmation auprès du fournisseur -> réception physique avec mouvement d'entrée en stock (`IN`) automatique.
 
 5. **Gestion Opérationnelle & Traçabilité (2 min) :**
    - Présentation du module *Clients* (`/clients`) avec recherche instantanée.
