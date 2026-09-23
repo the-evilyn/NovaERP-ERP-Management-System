@@ -9,16 +9,16 @@ spring:
       ddl-auto: validate
     show-sql: false
   mail:
-    host: ${MAIL_HOST}
+    host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: ${MAIL_SMTP_AUTH:true}
+          auth: ${MAIL_SMTP_AUTH:false}
           starttls:
-            enable: ${MAIL_SMTP_STARTTLS:true}
+            enable: ${MAIL_SMTP_STARTTLS:false}
 
 app:
   jwt:
@@ -39,6 +39,9 @@ springdoc:
     enabled: ${ENABLE_SWAGGER:false}
 
 management:
+  health:
+    mail:
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -46,3 +49,5 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+      probes:
+        enabled: true

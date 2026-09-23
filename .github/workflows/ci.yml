@@ -81,12 +81,11 @@ jobs:
         run: npm run build
 
   docker:
-    name: Docker Build & Package Verification
+    name: Docker Build & Push to ACR
     needs: [backend, frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -94,47 +93,92 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to Azure Container Registry
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Build and verify Backend Docker Image
+      - name: Build and push Backend Docker Image
         uses: docker/build-push-action@v5
         with:
           context: ./novaerp-backend
           file: ./novaerp-backend/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/novaerp-backend:latest
-            ghcr.io/${{ github.repository_owner }}/novaerp-backend:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/novaerp-backend:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/novaerp-backend:${{ github.sha }}
 
-      - name: Build and verify Frontend Docker Image
+      - name: Build and push Frontend Docker Image
         uses: docker/build-push-action@v5
         with:
           context: ./novaerp-frontend
           file: ./novaerp-frontend/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api' }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'https://novaerp-backend.delightfulmeadow-ea55eef5.swedencentral.azurecontainerapps.io/api' }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/novaerp-frontend:latest
-            ghcr.io/${{ github.repository_owner }}/novaerp-frontend:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/novaerp-frontend:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/novaerp-frontend:${{ github.sha }}
 
   azure-deploy:
-    name: Azure Staging Deployment (Prepared)
+    name: Azure Production Deployment & Smoke Test
     needs: [docker]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && false # Enable once AZURE_CREDENTIALS secret is added in repository settings
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy Containers to Azure
+      - name: Deploy Backend Container App
         run: |
-          echo "Automated Azure deployment step prepared."
+          az containerapp update \
+            --name novaerp-backend \
+            --resource-group ${{ secrets.AZURE_RG }} \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/novaerp-backend:${{ github.sha }}
+
+      - name: Deploy Frontend Container App
+        run: |
+          az containerapp update \
+            --name novaerp-frontend \
+            --resource-group ${{ secrets.AZURE_RG }} \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/novaerp-frontend:${{ github.sha }}
+
+      - name: Production Smoke Test
+        run: |
+          echo "Fetching Container App FQDNs..."
+          BACKEND_FQDN=$(az containerapp show --name novaerp-backend --resource-group ${{ secrets.AZURE_RG }} --query "properties.configuration.ingress.fqdn" -o tsv)
+          FRONTEND_FQDN=$(az containerapp show --name novaerp-frontend --resource-group ${{ secrets.AZURE_RG }} --query "properties.configuration.ingress.fqdn" -o tsv)
+          
+          echo "Backend FQDN: https://${BACKEND_FQDN}"
+          echo "Frontend FQDN: https://${FRONTEND_FQDN}"
+          
+          echo "Checking Backend Health Endpoint..."
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${BACKEND_FQDN}/actuator/health" || true)
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend is healthy!"
+              break
+            fi
+            sleep 5
+          done
+          
+          if [ "$STATUS" != "200" ]; then
+            echo "Backend health check failed with status $STATUS"
+            exit 1
+          fi
+
+          echo "Checking Frontend Homepage..."
+          FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${FRONTEND_FQDN}/")
+          echo "Frontend HTTP status: $FRONTEND_STATUS"
+          if [ "$FRONTEND_STATUS" != "200" ]; then
+            echo "Frontend check failed with status $FRONTEND_STATUS"
+            exit 1
+          fi
+          
+          echo "Azure Production Smoke Test Succeeded!"
