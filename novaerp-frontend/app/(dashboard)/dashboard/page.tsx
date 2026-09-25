@@ -30,7 +30,7 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { QuickReorderDialog } from "@/components/decision/quick-reorder-dialog";
 import { useDashboardStats, useSalesEvolution } from "@/hooks/use-dashboard";
-import { useRecommendations } from "@/hooks/use-decision";
+import { useRecommendations, useRiskSummary } from "@/hooks/use-decision";
 import { useAllStockMovements } from "@/hooks/use-stock-movements";
 import type {
   ReorderRecommendationResponse,
@@ -123,6 +123,7 @@ export default function DashboardPage(): React.ReactElement {
     useState<ReorderRecommendationResponse | null>(null);
 
   const { data: stats, isPending: isStatsPending } = useDashboardStats();
+  const { data: riskSummary, isPending: isRiskSummaryPending } = useRiskSummary();
   const { data: salesEvolution, isPending: isSalesPending } = useSalesEvolution(6);
   const { data: recommendationsPage, isPending: isRecsPending } =
     useRecommendations("ALL", 0, 5);
@@ -162,28 +163,26 @@ export default function DashboardPage(): React.ReactElement {
         ) : (
           <StatItem
             title="Articles en alerte"
-            value={String(
-              (stats?.criticalStock ?? 0) +
-                (stats?.lowStock ?? 0) +
-                (stats?.outOfStock ?? 0)
-            )}
-            loading={isStatsPending}
+            value={String(riskSummary?.totalArticlesAtRisk ?? 0)}
+            loading={isRiskSummaryPending}
           />
         )}
         <StatItem
           title="Stock critique"
-          value={String(stats?.criticalStock ?? 0)}
-          loading={isStatsPending}
+          value={String(riskSummary?.criticalCount ?? 0)}
+          loading={isRiskSummaryPending}
         />
         <StatItem
           title="Stock faible"
-          value={String(stats?.lowStock ?? 0)}
-          loading={isStatsPending}
+          value={String(
+            (riskSummary?.highCount ?? 0) + (riskSummary?.mediumCount ?? 0)
+          )}
+          loading={isRiskSummaryPending}
         />
         <StatItem
           title="Rupture de stock"
-          value={String(stats?.outOfStock ?? 0)}
-          loading={isStatsPending}
+          value={String(riskSummary?.outOfStockCount ?? 0)}
+          loading={isRiskSummaryPending}
           last
         />
       </div>
