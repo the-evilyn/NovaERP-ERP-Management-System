@@ -5,6 +5,7 @@ public enum RiskLevel {
     HIGH,
     MEDIUM,
     LOW,
+    INACTIVE,
 
     // Legacy values preserved for backward-compatible API queries
     OUT_OF_STOCK,

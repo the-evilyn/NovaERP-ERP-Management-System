@@ -10,8 +10,31 @@ public record StockRiskSummaryResponse(
         long mediumCount,
         BigDecimal totalEstimatedReorderBudget,
         long warningCount,
-        double averageRiskScore
+        double averageRiskScore,
+        long inactiveCount
 ) {
+    public StockRiskSummaryResponse(
+            long totalArticlesAtRisk,
+            long outOfStockCount,
+            long criticalCount,
+            long highCount,
+            long mediumCount,
+            BigDecimal totalEstimatedReorderBudget,
+            long inactiveCount
+    ) {
+        this(
+                totalArticlesAtRisk,
+                outOfStockCount,
+                criticalCount,
+                highCount,
+                mediumCount,
+                totalEstimatedReorderBudget,
+                highCount + mediumCount,
+                0.0,
+                inactiveCount
+        );
+    }
+
     public StockRiskSummaryResponse(
             long totalArticlesAtRisk,
             long outOfStockCount,
@@ -27,8 +50,7 @@ public record StockRiskSummaryResponse(
                 highCount,
                 mediumCount,
                 totalEstimatedReorderBudget,
-                highCount + mediumCount,
-                0.0
+                0L
         );
     }
 }

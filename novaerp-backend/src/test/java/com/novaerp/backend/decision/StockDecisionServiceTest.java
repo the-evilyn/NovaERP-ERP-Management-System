@@ -38,6 +38,9 @@ class StockDecisionServiceTest {
     @Mock
     private SaleOrderRepository saleOrderRepository;
 
+    @Mock
+    private com.novaerp.backend.stock.StockMovementRepository stockMovementRepository;
+
     @InjectMocks
     private StockDecisionService decisionService;
 
@@ -71,9 +74,33 @@ class StockDecisionServiceTest {
     }
 
     @Test
-    @DisplayName("determineRiskLevel classifies critical, high, medium, and low correctly")
+    @DisplayName("calculateSuggestedQuantity returns zero for dormant inactive article")
+    void testCalculateSuggestedQuantity_Inactive() {
+        BigDecimal qty = decisionService.calculateSuggestedQuantity(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+        assertThat(qty).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("calculateSuggestedQuantity replenishes to minStock when adc is zero")
+    void testCalculateSuggestedQuantity_MinStockReplenishment() {
+        BigDecimal qty = decisionService.calculateSuggestedQuantity(
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10),
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(10)
+        );
+        assertThat(qty).isEqualByComparingTo("10.00");
+    }
+
+    @Test
+    @DisplayName("determineRiskLevel classifies critical, high, medium, low, and inactive correctly")
     void testDetermineRiskLevel() {
-        // 1. Out of stock -> CRITICAL
+        // 1. Out of stock with demand/minStock -> CRITICAL
         RiskLevel r1 = decisionService.determineRiskLevel(
                 BigDecimal.ZERO, BigDecimal.valueOf(10), BigDecimal.valueOf(2), 0.0, 7, BigDecimal.valueOf(25)
         );
@@ -102,6 +129,18 @@ class StockDecisionServiceTest {
                 BigDecimal.valueOf(50), BigDecimal.valueOf(10), BigDecimal.valueOf(1), 50.0, 5, BigDecimal.valueOf(20)
         );
         assertThat(r5).isEqualTo(RiskLevel.LOW);
+
+        // 6. Dormant article (stock=0, minStock=0, adc=0) -> INACTIVE
+        RiskLevel r6 = decisionService.determineRiskLevel(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null, 7, BigDecimal.ZERO
+        );
+        assertThat(r6).isEqualTo(RiskLevel.INACTIVE);
+
+        // 7. Null minStock and zero adc -> INACTIVE
+        RiskLevel r7 = decisionService.determineRiskLevel(
+                BigDecimal.ZERO, null, BigDecimal.ZERO, null, 7, BigDecimal.ZERO
+        );
+        assertThat(r7).isEqualTo(RiskLevel.INACTIVE);
     }
 
     @Test
@@ -205,7 +244,27 @@ class StockDecisionServiceTest {
         assertThat(rec.leadTimeDays()).isEqualTo(7);
         assertThat(rec.riskLevel()).isEqualTo(RiskLevel.CRITICAL);
         assertThat(rec.daysOfStockRemaining()).isEqualTo(0.0);
-        assertThat(rec.explanation()).contains("Un délai par défaut de 7 jours a été utilisé");
+        assertThat(rec.explanation()).contains("Un délai par défaut de 7 jours a été appliqué");
+    }
+
+    @Test
+    @DisplayName("buildRecommendation produces INACTIVE recommendation for dormant article")
+    void testBuildRecommendation_Inactive() {
+        Article article = Article.builder()
+                .id(102L)
+                .reference("DORMANT-01")
+                .designation("Article Inactif")
+                .stockQuantity(BigDecimal.ZERO)
+                .minStockQuantity(BigDecimal.ZERO)
+                .purchasePriceHt(BigDecimal.valueOf(10))
+                .build();
+
+        ReorderRecommendationResponse rec = decisionService.buildRecommendation(article, Collections.emptyList(), BigDecimal.ZERO);
+
+        assertThat(rec.riskLevel()).isEqualTo(RiskLevel.INACTIVE);
+        assertThat(rec.suggestedQuantity()).isEqualByComparingTo("0.00");
+        assertThat(rec.daysOfStockRemaining()).isNull();
+        assertThat(rec.explanation()).contains("Article sans consommation récente");
     }
 
     @Test
@@ -213,14 +272,14 @@ class StockDecisionServiceTest {
     void testGetSummary() {
         Article a1 = Article.builder()
                 .id(1L)
-                .stockQuantity(BigDecimal.ZERO) // out of stock -> CRITICAL
+                .stockQuantity(BigDecimal.ZERO) // out of stock with minStock 10 -> CRITICAL
                 .minStockQuantity(BigDecimal.valueOf(10))
                 .purchasePriceHt(BigDecimal.valueOf(20))
                 .build();
 
         Article a2 = Article.builder()
                 .id(2L)
-                .stockQuantity(BigDecimal.valueOf(5)) // will have sales making it HIGH or CRITICAL
+                .stockQuantity(BigDecimal.valueOf(5)) // stock 5 <= minStock 10 -> HIGH
                 .minStockQuantity(BigDecimal.valueOf(10))
                 .purchasePriceHt(BigDecimal.valueOf(30))
                 .build();
@@ -232,15 +291,24 @@ class StockDecisionServiceTest {
                 .purchasePriceHt(BigDecimal.valueOf(10))
                 .build();
 
-        when(articleRepository.findAll()).thenReturn(List.of(a1, a2, a3));
+        Article a4 = Article.builder()
+                .id(4L)
+                .stockQuantity(BigDecimal.ZERO) // stock 0, minStock 0, no sales -> INACTIVE
+                .minStockQuantity(BigDecimal.ZERO)
+                .purchasePriceHt(BigDecimal.valueOf(5))
+                .build();
+
+        when(articleRepository.findAll()).thenReturn(List.of(a1, a2, a3, a4));
         when(supplierPriceRepository.findByArticleIdIn(any())).thenReturn(Collections.emptyList());
+        when(stockMovementRepository.sumOutQuantitiesByArticleSince(any())).thenReturn(Collections.emptyList());
         when(saleOrderRepository.sumDeliveredQuantitiesByArticleSince(any())).thenReturn(Collections.emptyList());
 
         StockRiskSummaryResponse summary = decisionService.getSummary();
 
         assertThat(summary.outOfStockCount()).isEqualTo(1);
         assertThat(summary.criticalCount()).isEqualTo(1);
-        assertThat(summary.totalArticlesAtRisk()).isGreaterThanOrEqualTo(1);
+        assertThat(summary.inactiveCount()).isEqualTo(1);
+        assertThat(summary.totalArticlesAtRisk()).isEqualTo(2);
         assertThat(summary.totalEstimatedReorderBudget()).isNotNull();
     }
 
@@ -267,6 +335,7 @@ class StockDecisionServiceTest {
 
         when(articleRepository.findAll()).thenReturn(List.of(a1, a2));
         when(supplierPriceRepository.findByArticleIdIn(any())).thenReturn(Collections.emptyList());
+        when(stockMovementRepository.sumOutQuantitiesByArticleSince(any())).thenReturn(Collections.emptyList());
         when(saleOrderRepository.sumDeliveredQuantitiesByArticleSince(any())).thenReturn(Collections.emptyList());
 
         Page<ReorderRecommendationResponse> result = decisionService.getRecommendations(RiskLevel.CRITICAL, PageRequest.of(0, 10));
@@ -274,5 +343,41 @@ class StockDecisionServiceTest {
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).riskLevel()).isEqualTo(RiskLevel.CRITICAL);
+    }
+
+    @Test
+    @DisplayName("getRecommendations sorts actionable items first")
+    void testGetRecommendations_ActionableFirstSorting() {
+        // a1 is INACTIVE (suggestedQuantity = 0)
+        Article a1 = Article.builder()
+                .id(1L)
+                .reference("INACT-01")
+                .designation("Inactive item")
+                .stockQuantity(BigDecimal.ZERO)
+                .minStockQuantity(BigDecimal.ZERO)
+                .purchasePriceHt(BigDecimal.valueOf(10))
+                .build();
+
+        // a2 is CRITICAL with minStock 20 (suggestedQuantity = 20)
+        Article a2 = Article.builder()
+                .id(2L)
+                .reference("CRIT-01")
+                .designation("Critical item")
+                .stockQuantity(BigDecimal.ZERO)
+                .minStockQuantity(BigDecimal.valueOf(20))
+                .purchasePriceHt(BigDecimal.valueOf(15))
+                .build();
+
+        when(articleRepository.findAll()).thenReturn(List.of(a1, a2));
+        when(supplierPriceRepository.findByArticleIdIn(any())).thenReturn(Collections.emptyList());
+        when(stockMovementRepository.sumOutQuantitiesByArticleSince(any())).thenReturn(Collections.emptyList());
+        when(saleOrderRepository.sumDeliveredQuantitiesByArticleSince(any())).thenReturn(Collections.emptyList());
+
+        Page<ReorderRecommendationResponse> result = decisionService.getRecommendations(null, PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        // Actionable item (a2, suggestedQuantity=20) should be first
+        assertThat(result.getContent().get(0).articleReference()).isEqualTo("CRIT-01");
+        assertThat(result.getContent().get(1).articleReference()).isEqualTo("INACT-01");
     }
 }

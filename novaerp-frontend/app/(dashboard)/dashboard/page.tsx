@@ -70,6 +70,12 @@ function RiskBadge({ level }: { level: RiskLevel }): React.ReactElement {
     case "MEDIUM":
     case "WARNING":
       return <Badge variant="warning">Moyen</Badge>;
+    case "INACTIVE":
+      return (
+        <Badge variant="outline" className="text-muted-foreground border-dashed">
+          Inactif
+        </Badge>
+      );
     case "LOW":
     case "NORMAL":
     default:
@@ -208,7 +214,7 @@ export default function DashboardPage(): React.ReactElement {
       </div>
 
       {/* Smart Stock Intelligence Alert Banner */}
-      {recommendationsPage && recommendationsPage.content.some((r) => r.riskLevel === "CRITICAL" || r.currentStock <= 0) && (
+      {recommendationsPage && recommendationsPage.content.some((r) => r.riskLevel === "CRITICAL" && r.suggestedQuantity > 0) && (
         <div className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/8 p-4 text-sm text-destructive-foreground sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-destructive/15 p-2 text-destructive shrink-0">
@@ -279,12 +285,15 @@ export default function DashboardPage(): React.ReactElement {
             )}
 
             {recommendationsPage?.content.map((rec) => {
+              const isInactive = rec.riskLevel === "INACTIVE";
               const hasZeroStock = rec.currentStock <= 0;
-              const dsrLabel = hasZeroStock
-                ? "0 j (Rupture)"
-                : rec.daysOfStockRemaining != null
-                  ? `${rec.daysOfStockRemaining} j`
-                  : "—";
+              const dsrLabel = isInactive
+                ? "Sans demande"
+                : hasZeroStock
+                  ? "0 j (Rupture)"
+                  : rec.daysOfStockRemaining != null
+                    ? `${rec.daysOfStockRemaining} j`
+                    : "—";
 
               return (
                 <TableRow key={rec.articleId}>
@@ -297,7 +306,7 @@ export default function DashboardPage(): React.ReactElement {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className={hasZeroStock ? "font-semibold text-destructive" : ""}>
+                    <span className={!isInactive && hasZeroStock ? "font-semibold text-destructive" : ""}>
                       {rec.currentStock} / {rec.minStockQuantity}
                     </span>
                   </TableCell>
@@ -309,9 +318,10 @@ export default function DashboardPage(): React.ReactElement {
                   <TableCell className="text-right text-sm">
                     <span
                       className={
-                        hasZeroStock ||
-                        (rec.daysOfStockRemaining != null &&
-                          rec.daysOfStockRemaining <= (rec.leadTimeDays ?? 7))
+                        !isInactive &&
+                        (hasZeroStock ||
+                          (rec.daysOfStockRemaining != null &&
+                            rec.daysOfStockRemaining <= (rec.leadTimeDays ?? 7)))
                           ? "font-semibold text-destructive"
                           : ""
                       }
@@ -323,7 +333,11 @@ export default function DashboardPage(): React.ReactElement {
                     <RiskBadge level={rec.riskLevel} />
                   </TableCell>
                   <TableCell className="text-right font-semibold">
-                    +{rec.suggestedQuantity} {rec.unitName ?? ""}
+                    {isInactive ? (
+                      <span className="font-normal text-muted-foreground">0</span>
+                    ) : (
+                      `+${rec.suggestedQuantity} ${rec.unitName ?? ""}`
+                    )}
                   </TableCell>
                   <TableCell className="text-sm">
                     {rec.recommendedSupplierName}

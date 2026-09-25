@@ -411,6 +411,7 @@ export type RiskLevel =
   | "HIGH"
   | "MEDIUM"
   | "LOW"
+  | "INACTIVE"
   | "OUT_OF_STOCK"
   | "WARNING"
   | "NORMAL";
@@ -444,6 +445,7 @@ export interface StockRiskSummaryResponse {
   criticalCount: number;
   highCount?: number;
   mediumCount?: number;
+  inactiveCount?: number;
   warningCount: number;
   totalEstimatedReorderBudget: number;
   averageRiskScore?: number;

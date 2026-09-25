@@ -49,6 +49,12 @@ function RiskBadge({ level }: { level: RiskLevel }): React.ReactElement {
     case "MEDIUM":
     case "WARNING":
       return <Badge variant="warning">Moyen</Badge>;
+    case "INACTIVE":
+      return (
+        <Badge variant="outline" className="text-muted-foreground border-dashed">
+          Inactif
+        </Badge>
+      );
     case "LOW":
     case "NORMAL":
     default:
@@ -217,6 +223,13 @@ export function DecisionTable(): React.ReactElement {
             >
               Moyen ({summary?.mediumCount ?? 0})
             </Button>
+            <Button
+              variant={activeTab === "INACTIVE" ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleTabChange("INACTIVE")}
+            >
+              Inactifs ({summary?.inactiveCount ?? 0})
+            </Button>
           </div>
         </CardFrameHeader>
 
@@ -261,9 +274,11 @@ export function DecisionTable(): React.ReactElement {
 
             {data?.content.map((rec) => {
               const isExpanded = expandedRowId === rec.articleId;
+              const isInactive = rec.riskLevel === "INACTIVE";
               const hasZeroStock = rec.currentStock <= 0;
-              const dsrLabel =
-                hasZeroStock
+              const dsrLabel = isInactive
+                ? "Sans demande"
+                : hasZeroStock
                   ? "0 j (Rupture)"
                   : rec.daysOfStockRemaining != null
                     ? `${rec.daysOfStockRemaining} j`
@@ -284,7 +299,7 @@ export function DecisionTable(): React.ReactElement {
 
                     <TableCell>
                       <div className="flex flex-col text-sm">
-                        <span className={hasZeroStock ? "font-semibold text-destructive" : ""}>
+                        <span className={!isInactive && hasZeroStock ? "font-semibold text-destructive" : ""}>
                           {rec.currentStock} {rec.unitName ?? ""}
                         </span>
                         <span className="text-muted-foreground text-xs">
@@ -304,7 +319,8 @@ export function DecisionTable(): React.ReactElement {
                     <TableCell className="text-right text-sm">
                       <span
                         className={
-                          hasZeroStock || (rec.daysOfStockRemaining != null && rec.daysOfStockRemaining <= (rec.leadTimeDays ?? 7))
+                          !isInactive &&
+                          (hasZeroStock || (rec.daysOfStockRemaining != null && rec.daysOfStockRemaining <= (rec.leadTimeDays ?? 7)))
                             ? "font-semibold text-destructive"
                             : ""
                         }
@@ -330,8 +346,8 @@ export function DecisionTable(): React.ReactElement {
                     </TableCell>
 
                     <TableCell className="text-right">
-                      <span className="font-semibold text-foreground">
-                        +{rec.suggestedQuantity}
+                      <span className={isInactive ? "text-muted-foreground font-normal" : "font-semibold text-foreground"}>
+                        {isInactive ? "0" : `+${rec.suggestedQuantity}`}
                       </span>
                       <span className="ml-1 text-muted-foreground text-xs">
                         {rec.unitName ?? ""}
